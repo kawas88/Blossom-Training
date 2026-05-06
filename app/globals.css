@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background: #FAF7F2;
+  color: #0F1419;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-image: radial-gradient(circle, rgba(15, 20, 25, 0.04) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-attachment: fixed;
+  font-family: var(--font-dm-sans), system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-dm-serif), Georgia, serif;
+  letter-spacing: -0.02em;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+/* Custom scrollbar — subtle */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: rgba(15, 20, 25, 0.15);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(15, 20, 25, 0.3);
+  background-clip: content-box;
+}
+
+/* Editorial italic accent helper */
+.italic-sage {
+  font-style: italic;
+  color: #1D6E52;
+}
