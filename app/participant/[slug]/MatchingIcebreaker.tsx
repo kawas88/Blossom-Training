@@ -195,7 +195,7 @@ export function MatchingIcebreaker({
             Brilliant — <span className="italic-sage">all matched!</span>
           </h2>
           <p className="mt-4 text-ink/70 text-balance">
-            Now we&rsquo;d love to hear how the ASQ-3 has worked for you this year.
+            Tap save to lock in your placements and head back to your activities.
           </p>
           {error && (
             <div className="mt-4 rounded-xl bg-error/10 border border-error/20 px-4 py-3 text-sm text-error">
@@ -204,7 +204,7 @@ export function MatchingIcebreaker({
           )}
           <div className="mt-8">
             <Button size="lg" onClick={submit} disabled={submitting}>
-              {submitting ? 'Saving…' : 'Continue to feedback →'}
+              {submitting ? 'Saving…' : 'Save and return →'}
             </Button>
           </div>
         </motion.div>
