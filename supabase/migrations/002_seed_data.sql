@@ -15,7 +15,7 @@ insert into admin_users (email, password_hash, name, role)
 values (
   'kawas@swiftap.studio',
   -- REPLACE THIS placeholder with the bcrypt hash you generated.
-  '$2a$10$REPLACE_THIS_PLACEHOLDER_WITH_REAL_BCRYPT_HASH_PLEASE',
+  '$2a$10$Hglgw30uaYI2V./g.SfZT.a1wjMiOfajAw3JaxlPS4G4hrCTTUTvq',
   'Kawas',
   'admin'
 )
