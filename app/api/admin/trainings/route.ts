@@ -3,6 +3,7 @@ import { getAdminSession, requireRole } from '@/lib/auth'
 import { getActiveWorkspace } from '@/lib/workspace'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { generateJoinCode, slugify } from '@/lib/utils'
+import { requirePaidOrActiveTrial } from '@/lib/billing-guard'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -17,6 +18,9 @@ export async function POST(req: Request) {
 
   const role = await requireRole(workspaceId, session.user_id, 'trainer')
   if (!role) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const billing = await requirePaidOrActiveTrial(workspaceId)
+  if (!billing.ok) return billing.response
 
   try {
     const body = await req.json()

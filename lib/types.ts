@@ -208,8 +208,22 @@ export type AdminSession = {
 // Workspaces / multi-tenancy
 // =====================================================================
 
-export type WorkspacePlan = 'trial' | 'personal' | 'organization'
+export type WorkspacePlan = 'trial' | 'personal' | 'organization' | 'canceled'
 export type WorkspaceRole = 'owner' | 'admin' | 'trainer' | 'viewer'
+
+export type BillingInterval = 'monthly' | 'annual'
+export type BillingCurrency = 'AED' | 'USD'
+
+// Mirrors Stripe.Subscription.Status — kept loose to tolerate new statuses.
+export type StripeSubscriptionStatus =
+  | 'trialing'
+  | 'active'
+  | 'past_due'
+  | 'unpaid'
+  | 'canceled'
+  | 'incomplete'
+  | 'incomplete_expired'
+  | 'paused'
 
 export type Workspace = {
   id: string
@@ -222,7 +236,27 @@ export type Workspace = {
   training_focus: string[] | null
   onboarded_at: string | null
   created_at: string
+  // Billing (added in migration 004)
+  stripe_customer_id: string | null
+  stripe_subscription_id: string | null
+  stripe_subscription_status: StripeSubscriptionStatus | null
+  stripe_price_id: string | null
+  current_period_end: string | null
+  cancel_at_period_end: boolean
+  billing_interval: BillingInterval | null
+  billing_currency: BillingCurrency | null
 }
+
+// What every page/route needs to know about a workspace's effective
+// billing state. Derived from the raw Stripe state via getBillingState().
+export type BillingState =
+  | { kind: 'trial-active'; daysLeft: number }
+  | { kind: 'trial-expired'; expiredAt: string }
+  | { kind: 'paid-active' }
+  | { kind: 'paid-canceling'; endsAt: string }
+  | { kind: 'past-due' }
+  | { kind: 'canceled' }
+  | { kind: 'no-billing' } // legacy/comp workspaces with no Stripe link
 
 export type WorkspaceMember = {
   id: string

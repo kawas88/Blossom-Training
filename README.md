@@ -16,9 +16,13 @@ Multi-tenant SaaS. Each trainer or team gets a workspace, builds their own libra
 
 ## Pricing
 
-- **Trial** — 14 days, no card. Full access, single seat.
-- **Personal** — AED 199 / month. One trainer, unlimited trainings and participants.
-- **Organization** — AED 899 / month. Up to 10 seats, shared workspace, priority support.
+| Plan | Monthly | Annual (save 17%) | Seats |
+|---|---|---|---|
+| **Trial** | free | — | 1 |
+| **Personal** | AED 199 / USD 54 | AED 1,990 / USD 540 | 1 |
+| **Organization** | AED 899 / USD 245 | AED 8,990 / USD 2,450 | 10 |
+
+Trial is automatic on signup — 14 days, no card. Cancel anytime. Stripe handles all card data.
 
 ## Local setup
 
@@ -41,11 +45,38 @@ Multi-tenant SaaS. Each trainer or team gets a workspace, builds their own libra
 4. **Run the migrations** in the Supabase SQL Editor, in order:
    - `supabase/migrations/001_initial_schema.sql`
    - `supabase/migrations/002_seed_data.sql` (replace the bcrypt placeholder with your own — see comments in the file)
-   - `supabase/migrations/003_multi_tenancy.sql` (creates workspaces / membership tables and migrates existing rows to a Demo Workspace)
+   - `supabase/migrations/003_multi_tenancy.sql` (multi-tenancy + Demo Workspace backfill)
+   - `supabase/migrations/004_billing.sql` (Stripe columns + billing_events audit table)
 
 5. **Add your Anthropic API key** from [console.anthropic.com](https://console.anthropic.com) into `.env.local` as `ANTHROPIC_API_KEY`.
 
-6. **Start the dev server**
+6. **Set up Stripe.**
+   - Create a Stripe account (or use an existing one) and switch to **Test mode**.
+   - Copy your secret + publishable keys from Developers → API keys into `.env.local`:
+     ```
+     STRIPE_SECRET_KEY=sk_test_...
+     NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+     ```
+   - Run the products + prices setup:
+     ```bash
+     npm run setup:stripe
+     ```
+     This creates two products ("Trainzy Personal" / "Trainzy Organization") with eight prices (AED/USD × monthly/annual) and prints the eight `STRIPE_PRICE_*` env vars. Paste those into `.env.local`.
+   - Configure the Customer Portal:
+     ```bash
+     npm run setup:stripe-portal
+     ```
+   - Install the Stripe CLI (`brew install stripe/stripe-cli/stripe` on macOS, or see [stripe.com/docs/stripe-cli](https://stripe.com/docs/stripe-cli)) and log in:
+     ```bash
+     stripe login
+     ```
+   - In a second terminal, forward webhooks to your local server:
+     ```bash
+     stripe listen --forward-to http://localhost:3000/api/billing/webhook
+     ```
+     The CLI prints a `whsec_...` secret — paste it into `.env.local` as `STRIPE_WEBHOOK_SECRET`.
+
+7. **Start the dev server**
    ```bash
    npm run dev
    ```
@@ -54,19 +85,67 @@ Multi-tenant SaaS. Each trainer or team gets a workspace, builds their own libra
    - Sign up at `/signup` to create a brand-new workspace and walk through onboarding.
    - Or sign in at `/admin/login` with the seed admin (`kawas@swiftap.studio` + your seed password) — you&rsquo;ll land in the Demo Workspace.
    - Try the demo participant flow with join code `ASQ-DEMO`.
+   - View pricing at `/pricing`.
+
+## Testing the billing flow
+
+Stripe test card numbers (any future expiry, any 3-digit CVC, any postal code):
+
+- `4242 4242 4242 4242` — successful payment
+- `4000 0025 0000 3155` — requires 3D Secure auth
+- `4000 0000 0000 9995` — declined (insufficient funds)
+
+A clean end-to-end test:
+
+1. Sign up a fresh account at `/signup`.
+2. Land in onboarding, complete it, end up on the dashboard.
+3. Go to `/admin/settings?tab=billing` — see the "free trial" card.
+4. Click **Upgrade to Personal** (monthly AED). Stripe Checkout opens.
+5. Pay with `4242 4242 4242 4242`. Redirects back to `/admin/settings/billing?session_id=...`.
+6. The "Welcome to Trainzy — setting things up." banner appears and polls.
+7. Within a second or two the Stripe CLI shows webhook events; your workspace flips to Personal.
+8. The banner clears and you see the Personal plan card.
+9. Click **Manage subscription** → Stripe Customer Portal opens.
+10. Cancel in the portal → return to Trainzy → see "Canceling on …" pill.
+
+Trial-expired enforcement:
+
+- Manually set a test workspace's `trial_ends_at` to a past timestamp in the Supabase SQL editor.
+- Open the dashboard — a yellow banner appears at the top.
+- Try to create a training — the API returns 402 with a friendly message and the UI surfaces it.
+- Existing trainings, exports, and dashboards still work read-only.
+
+Seat-limit enforcement:
+
+- On a Personal plan workspace, try inviting a 2nd teammate — the form blocks with "You&rsquo;ve reached your seat limit."
+
+Webhook idempotency:
+
+- In the Stripe Dashboard → Developers → Events, click any past event → **Resend**.
+- The webhook returns 200 with `{ "ok": true, "idempotent": true }` and does not double-process.
 
 ## Deploy to Vercel
 
 1. Push to GitHub.
 2. Import the repo into Vercel. Framework auto-detects as Next.js.
-3. Add all environment variables from `.env.example` in the Vercel project settings:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY`
-   - `ADMIN_JWT_SECRET`
-   - `ANTHROPIC_API_KEY`
-   - `NEXT_PUBLIC_APP_URL` — your Vercel URL (e.g. `https://trainzy.io`)
-4. Deploy. Subsequent pushes to `main` auto-deploy.
+3. Add all environment variables from `.env.example` in the Vercel project settings — Supabase keys, Anthropic key, `ADMIN_JWT_SECRET`, `NEXT_PUBLIC_APP_URL` (your Vercel URL).
+4. **Set up Stripe for production**:
+   - Switch your Stripe Dashboard to **Live mode**.
+   - Repeat `npm run setup:stripe` against your local `.env.local` *with the live secret key* — it will create live-mode products and prices and print the live `STRIPE_PRICE_*` IDs.
+   - Repeat `npm run setup:stripe-portal` similarly.
+   - Paste live `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, and the eight live `STRIPE_PRICE_*` env vars into Vercel.
+   - In the Stripe Dashboard → Developers → Webhooks, create an endpoint pointing to `https://your-vercel-url/api/billing/webhook`. Subscribe to: `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_succeeded`, `invoice.payment_failed`, `checkout.session.completed`, `customer.deleted`. Copy the signing secret into Vercel as `STRIPE_WEBHOOK_SECRET`.
+5. Deploy. Subsequent pushes to `main` auto-deploy.
+
+## Discount management
+
+Coupons live in Stripe — no code change needed. To create one (e.g. for a founding member):
+
+1. Stripe Dashboard → Products → **Coupons** → Create.
+2. Pick the discount (e.g. 50% off, duration: forever).
+3. Optionally restrict to specific prices (e.g. only Personal annual).
+4. Create a **Promotion Code** for the coupon — that's the short code customers type.
+5. Share with the customer. They apply it at Stripe Checkout (we pass `allow_promotion_codes: true`).
 
 ## Architecture overview
 
@@ -83,6 +162,10 @@ Multi-tenant SaaS. Each trainer or team gets a workspace, builds their own libra
 **Realtime** — Training detail pages subscribe to Supabase Realtime channels for `participants`, response tables and `trainer_notes`. On any event the dashboard calls `router.refresh()` so server-rendered data refetches.
 
 **AI** — `/api/ai/analyze-responses` summarises long-form survey answers via the Anthropic SDK with structured JSON output (sentiment / themes / quotes / suggestions). Cached in `ai_analyses` keyed on `(training_id, question_id)`. PDF exports include a separate executive-summary prompt.
+
+**Billing (Phase 2)** — Stripe Checkout for new subscriptions, Stripe Customer Portal for self-service management. Webhooks at `/api/billing/webhook` are the source of truth for subscription state; they verify the signature with `stripe.webhooks.constructEvent` against the raw request body, then check `billing_events.stripe_event_id` for idempotency before processing. The 14-day trial is enforced entirely in Trainzy code (`workspaces.trial_ends_at`) — we don't pass `trial_period_days` to Stripe. Stripe doesn't know about seats — seat limits (1 for Personal, 10 for Organization) are enforced at the application level, so changing limits later doesn't require touching Stripe. Locale-aware currency: AED for `x-vercel-ip-country = AE`, USD elsewhere, with a manual toggle on the pricing and billing pages.
+
+**Trial-expiry strategy** — No cron. Every server-rendered admin page and every content-mutation API route computes `getBillingState()` on demand and gates accordingly. Past-due / canceled workspaces are read-only with a banner; trial-expired likewise. This keeps infrastructure simple — a cron can land later for email notifications.
 
 ## File map (high level)
 
@@ -105,6 +188,7 @@ app/
       surveys/                                 CRUD
       settings/                                General / Members / Billing / Profile tabs
       no-workspace/                            Friendly fallback
+  pricing/                                     Public pricing page with currency + interval toggle
   api/
     auth/{signup,accept-invite}/               Public auth
     admin/{login,logout}/
@@ -115,16 +199,25 @@ app/
     admin/trainings/                           Workspace-scoped CRUD + status + notes + exports
     admin/{icebreakers,surveys}/               Workspace-scoped CRUD
     ai/analyze-responses/                      Sentiment analysis with caching
+    billing/{checkout,portal,webhook}/         Stripe (Phase 2)
     participants/join/                         Public
     responses/{matching,prompts,survey}/       Public
+components/billing/BillingBanner.tsx           Cross-page billing-state banner
 components/ui/                                 Editorial component library
 lib/
   supabase/{client,server,admin}.ts            Three Supabase clients
   auth.ts                                      JWT + bcrypt + role helpers
   workspace.ts                                 Active workspace + switching helpers
   workspace-guard.ts                           requireWorkspaceAccess() for route handlers
+  billing-state.ts                             Pure billing-state derivation (client-safe)
+  billing-guard.ts                             requirePaidOrActiveTrial() for route handlers
+  stripe.ts                                    Stripe SDK init + price catalog + customer helpers
+  locale.ts                                    Currency detection from request headers
   ai.ts                                        Anthropic helpers
   types.ts                                     DB types and helpers
   utils.ts                                     Token / code / slug / formatters
-supabase/migrations/                           001 schema + 002 seed + 003 multi-tenancy
+scripts/
+  setup-stripe.ts                              `npm run setup:stripe` — creates products + prices
+  setup-stripe-portal.ts                       `npm run setup:stripe-portal` — Customer Portal config
+supabase/migrations/                           001 schema + 002 seed + 003 multi-tenancy + 004 billing
 ```

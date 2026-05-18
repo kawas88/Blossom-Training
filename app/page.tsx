@@ -14,6 +14,12 @@ export default function HomePage() {
           </div>
           <nav className="flex items-center gap-5">
             <Link
+              href="/pricing"
+              className="text-sm text-ink/70 hover:text-ink transition-colors"
+            >
+              Pricing
+            </Link>
+            <Link
               href="/admin/login"
               className="text-sm text-ink/70 hover:text-ink transition-colors"
             >

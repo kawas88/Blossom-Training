@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { getAdminSession } from '@/lib/auth'
 import { getActiveWorkspace } from '@/lib/workspace'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { detectDefaultCurrency } from '@/lib/locale'
 import { SettingsClient } from './SettingsClient'
 import type { WorkspaceInvite, WorkspaceMember, AdminUser } from '@/lib/types'
 
@@ -57,6 +58,7 @@ export default async function SettingsPage({
       role={active.role}
       members={members}
       invites={(rawInvites ?? []) as WorkspaceInvite[]}
+      defaultCurrency={detectDefaultCurrency()}
       initialTab={searchParams.tab || 'general'}
     />
   )

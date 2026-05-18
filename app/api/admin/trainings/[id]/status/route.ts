@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireWorkspaceAccess, workspaceErrorResponse } from '@/lib/workspace-guard'
+import { requirePaidOrActiveTrial } from '@/lib/billing-guard'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -21,6 +22,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const status = String(body.status || '')
     if (!['draft', 'live', 'closed'].includes(status)) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+    }
+
+    // Trial-expired / past-due workspaces can still close trainings, but not
+    // launch new ones (or re-open closed ones).
+    if (status === 'live') {
+      const billing = await requirePaidOrActiveTrial(training.workspace_id)
+      if (!billing.ok) return billing.response
     }
     const patch: Record<string, unknown> = { status }
     if (status === 'closed') patch.closed_at = new Date().toISOString()

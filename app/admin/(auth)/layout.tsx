@@ -9,6 +9,8 @@ import {
 } from 'lucide-react'
 import { getAdminSession } from '@/lib/auth'
 import { getActiveWorkspace, getUserWorkspaces } from '@/lib/workspace'
+import { getBillingState } from '@/lib/billing-state'
+import { BillingBanner } from '@/components/billing/BillingBanner'
 import { LogoutButton } from './LogoutButton'
 import { WorkspaceSwitcher } from './WorkspaceSwitcher'
 
@@ -107,7 +109,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </aside>
 
       <main className="flex-1 md:ml-64 px-4 md:px-10 py-6 md:py-10">
-        <div className="mx-auto max-w-6xl">{children}</div>
+        <div className="mx-auto max-w-6xl">
+          <BillingBanner
+            state={getBillingState(active.workspace)}
+            workspaceId={active.workspace.id}
+          />
+          {children}
+        </div>
       </main>
     </div>
   )

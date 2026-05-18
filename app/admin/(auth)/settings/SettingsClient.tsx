@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Tabs } from '@/components/ui/Tabs'
 import type {
   AdminSession,
+  BillingCurrency,
   Workspace,
   WorkspaceInvite,
   WorkspaceRole,
@@ -19,6 +20,7 @@ type Props = {
   role: WorkspaceRole
   members: MemberRow[]
   invites: WorkspaceInvite[]
+  defaultCurrency: BillingCurrency
   initialTab: string
 }
 
@@ -28,6 +30,7 @@ export function SettingsClient({
   role,
   members,
   invites,
+  defaultCurrency,
   initialTab,
 }: Props) {
   const allowed = ['general', 'members', 'billing', 'profile']
@@ -65,7 +68,13 @@ export function SettingsClient({
           currentUserId={currentUser.user_id}
         />
       )}
-      {tab === 'billing' && <BillingTab workspace={workspace} />}
+      {tab === 'billing' && (
+        <BillingTab
+          workspace={workspace}
+          defaultCurrency={defaultCurrency}
+          memberCount={members.length}
+        />
+      )}
       {tab === 'profile' && <ProfileTab currentUser={currentUser} />}
     </div>
   )

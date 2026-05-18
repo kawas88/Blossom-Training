@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getAdminSession, requireRole } from '@/lib/auth'
 import { getActiveWorkspace } from '@/lib/workspace'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requirePaidOrActiveTrial } from '@/lib/billing-guard'
 import type { QuestionType } from '@/lib/types'
 
 export const runtime = 'nodejs'
@@ -23,6 +24,8 @@ export async function POST(req: Request) {
   const workspaceId = active.workspace.id
   const role = await requireRole(workspaceId, session.user_id, 'trainer')
   if (!role) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const billing = await requirePaidOrActiveTrial(workspaceId)
+  if (!billing.ok) return billing.response
   try {
     const body = await req.json()
     const supabase = createAdminClient()
