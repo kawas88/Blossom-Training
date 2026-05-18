@@ -1,16 +1,20 @@
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getActiveWorkspace } from '@/lib/workspace'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { formatDate } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
 export default async function SurveysListPage() {
+  const active = await getActiveWorkspace()
+  const workspaceId = active!.workspace.id
   const supabase = createAdminClient()
   const { data: surveys } = await supabase
     .from('surveys')
     .select('id, title, description, created_at')
+    .eq('workspace_id', workspaceId)
     .order('created_at', { ascending: false })
 
   return (

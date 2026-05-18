@@ -200,5 +200,58 @@ export type AdminSession = {
   user_id: string
   email: string
   name: string
-  role: AdminRole
+  active_workspace_id: string | null
+  session_version: number
+}
+
+// =====================================================================
+// Workspaces / multi-tenancy
+// =====================================================================
+
+export type WorkspacePlan = 'trial' | 'personal' | 'organization'
+export type WorkspaceRole = 'owner' | 'admin' | 'trainer' | 'viewer'
+
+export type Workspace = {
+  id: string
+  name: string
+  slug: string
+  plan: WorkspacePlan
+  trial_ends_at: string | null
+  seat_limit: number
+  created_by: string | null
+  training_focus: string[] | null
+  onboarded_at: string | null
+  created_at: string
+}
+
+export type WorkspaceMember = {
+  id: string
+  workspace_id: string
+  user_id: string
+  role: WorkspaceRole
+  joined_at: string
+}
+
+export type WorkspaceInvite = {
+  id: string
+  workspace_id: string
+  email: string
+  role: 'admin' | 'trainer' | 'viewer'
+  invite_token: string
+  invited_by: string | null
+  expires_at: string
+  accepted_at: string | null
+  created_at: string
+}
+
+// Ordered by privilege ascending — used for role comparison.
+export const ROLE_HIERARCHY: Record<WorkspaceRole, number> = {
+  viewer: 1,
+  trainer: 2,
+  admin: 3,
+  owner: 4,
+}
+
+export function roleAtLeast(actual: WorkspaceRole, min: WorkspaceRole): boolean {
+  return ROLE_HIERARCHY[actual] >= ROLE_HIERARCHY[min]
 }

@@ -15,7 +15,7 @@ export default async function LoginPage() {
       <Decoration />
       <header className="px-6 md:px-10 pt-8">
         <Link href="/" className="font-mono text-xs tracking-wider uppercase text-ink/70">
-          ← Nursery Trainer Hub
+          ← Trainzy
         </Link>
       </header>
       <div className="flex-1 px-6 py-16 flex items-center">

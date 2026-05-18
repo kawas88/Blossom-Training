@@ -148,7 +148,7 @@ export function ParticipantFlow({
               </button>
             ) : (
               <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-ink/60">
-                NTH
+                TZ
               </div>
             )}
             <div className="hidden sm:block w-px h-4 bg-ink/15" />

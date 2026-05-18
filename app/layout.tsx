@@ -24,9 +24,9 @@ const spaceMono = Space_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Nursery Trainer Hub',
+  title: 'Trainzy — Training that lands.',
   description:
-    'A warmer way to learn together — interactive icebreakers and feedback for nursery educators.',
+    'A warm, modern training platform for trainers. Interactive icebreakers, honest feedback, and AI-powered analysis for sessions that stay with people.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

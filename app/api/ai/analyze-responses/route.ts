@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { getAdminSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireWorkspaceAccess, workspaceErrorResponse } from '@/lib/workspace-guard'
 import { analyzeSentiment } from '@/lib/ai'
 
 export const runtime = 'nodejs'
@@ -8,8 +8,6 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 export async function POST(req: Request) {
-  const session = await getAdminSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   try {
     const body = await req.json()
     const trainingId = String(body.training_id || '').trim()
@@ -18,6 +16,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing training_id or question_id' }, { status: 400 })
     }
     const supabase = createAdminClient()
+    const { data: trainingMeta } = await supabase
+      .from('trainings')
+      .select('workspace_id')
+      .eq('id', trainingId)
+      .maybeSingle()
+    if (!trainingMeta) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    const access = await requireWorkspaceAccess(trainingMeta.workspace_id, 'viewer')
+    if (!access.ok) return workspaceErrorResponse(access)
 
     const [{ data: question }, { data: responses }] = await Promise.all([
       supabase.from('survey_questions').select('id, question').eq('id', questionId).maybeSingle(),

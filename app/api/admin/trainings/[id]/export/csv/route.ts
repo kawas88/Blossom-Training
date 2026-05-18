@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { getAdminSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireWorkspaceAccess, workspaceErrorResponse } from '@/lib/workspace-guard'
 import { formatDateTime } from '@/lib/utils'
 
 export const runtime = 'nodejs'
@@ -14,10 +14,16 @@ function csvEscape(v: unknown): string {
 }
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
-  const session = await getAdminSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const supabase = createAdminClient()
+  const { data: trainingMeta } = await supabase
+    .from('trainings')
+    .select('workspace_id')
+    .eq('id', params.id)
+    .maybeSingle()
+  if (!trainingMeta) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  const access = await requireWorkspaceAccess(trainingMeta.workspace_id, 'viewer')
+  if (!access.ok) return workspaceErrorResponse(access)
   try {
-    const supabase = createAdminClient()
     const [
       { data: training },
       { data: participants },

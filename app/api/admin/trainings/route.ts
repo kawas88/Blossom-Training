@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { getAdminSession } from '@/lib/auth'
+import { getAdminSession, requireRole } from '@/lib/auth'
+import { getActiveWorkspace } from '@/lib/workspace'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { generateJoinCode, slugify } from '@/lib/utils'
 
@@ -10,6 +11,13 @@ export async function POST(req: Request) {
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const active = await getActiveWorkspace()
+  if (!active) return NextResponse.json({ error: 'No active workspace' }, { status: 400 })
+  const workspaceId = active.workspace.id
+
+  const role = await requireRole(workspaceId, session.user_id, 'trainer')
+  if (!role) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
   try {
     const body = await req.json()
     const title = String(body.title || '').trim()
@@ -19,9 +27,27 @@ export async function POST(req: Request) {
     const baseSlug = slugify(title) || 'training'
     const baseCodePrefix = baseSlug.slice(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, '') || 'T'
 
-    let slug = baseSlug
-    let joinCode = generateJoinCode(baseCodePrefix)
-    let inserted: { id: string } | null = null
+    // Verify FK icebreaker_id / survey_id belong to this workspace
+    if (body.icebreaker_id) {
+      const { data: ice } = await supabase
+        .from('icebreakers')
+        .select('id')
+        .eq('id', body.icebreaker_id)
+        .eq('workspace_id', workspaceId)
+        .maybeSingle()
+      if (!ice) return NextResponse.json({ error: 'Icebreaker not found' }, { status: 404 })
+    }
+    if (body.survey_id) {
+      const { data: sv } = await supabase
+        .from('surveys')
+        .select('id')
+        .eq('id', body.survey_id)
+        .eq('workspace_id', workspaceId)
+        .maybeSingle()
+      if (!sv) return NextResponse.json({ error: 'Survey not found' }, { status: 404 })
+    }
+
+    let inserted: { id: string; slug: string; join_code: string } | null = null
     let attempts = 0
     while (attempts < 5) {
       const trySlug = attempts === 0 ? baseSlug : `${baseSlug}-${attempts + 1}`
@@ -29,6 +55,7 @@ export async function POST(req: Request) {
       const { data, error } = await supabase
         .from('trainings')
         .insert({
+          workspace_id: workspaceId,
           title,
           nursery_name: body.nursery_name || null,
           trainer_name: body.trainer_name || null,
@@ -43,9 +70,7 @@ export async function POST(req: Request) {
         .select('*')
         .single()
       if (!error && data) {
-        inserted = data as unknown as { id: string }
-        slug = trySlug
-        joinCode = tryCode
+        inserted = data as { id: string; slug: string; join_code: string }
         break
       }
       attempts++
@@ -53,7 +78,7 @@ export async function POST(req: Request) {
     if (!inserted) {
       return NextResponse.json({ error: 'Could not create training (collision)' }, { status: 500 })
     }
-    return NextResponse.json({ training: { ...inserted, slug, join_code: joinCode } })
+    return NextResponse.json({ training: inserted })
   } catch (e: unknown) {
     console.error('admin/trainings POST error', e)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })

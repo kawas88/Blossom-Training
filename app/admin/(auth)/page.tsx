@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { ArrowRight, Plus, Users } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAdminSession } from '@/lib/auth'
+import { getActiveWorkspace } from '@/lib/workspace'
 import { Pill } from '@/components/ui/Pill'
 import { formatDate } from '@/lib/utils'
 
@@ -9,17 +10,33 @@ export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
   const session = await getAdminSession()
+  const active = await getActiveWorkspace()
+  const workspaceId = active!.workspace.id
   const supabase = createAdminClient()
 
   const [{ count: totalTrainings = 0 }, { count: liveTrainings = 0 }, { count: totalParticipants = 0 }, { count: totalSurveyResp = 0 }, { data: recent }] =
     await Promise.all([
-      supabase.from('trainings').select('id', { count: 'exact', head: true }),
-      supabase.from('trainings').select('id', { count: 'exact', head: true }).eq('status', 'live'),
-      supabase.from('participants').select('id', { count: 'exact', head: true }),
-      supabase.from('survey_responses').select('id', { count: 'exact', head: true }),
+      supabase
+        .from('trainings')
+        .select('id', { count: 'exact', head: true })
+        .eq('workspace_id', workspaceId),
+      supabase
+        .from('trainings')
+        .select('id', { count: 'exact', head: true })
+        .eq('workspace_id', workspaceId)
+        .eq('status', 'live'),
+      supabase
+        .from('participants')
+        .select('id, trainings!inner(workspace_id)', { count: 'exact', head: true })
+        .eq('trainings.workspace_id', workspaceId),
+      supabase
+        .from('survey_responses')
+        .select('id, trainings!inner(workspace_id)', { count: 'exact', head: true })
+        .eq('trainings.workspace_id', workspaceId),
       supabase
         .from('trainings')
         .select('id, title, nursery_name, join_code, status, created_at')
+        .eq('workspace_id', workspaceId)
         .order('created_at', { ascending: false })
         .limit(5),
     ])
@@ -31,7 +48,7 @@ export default async function DashboardPage() {
           Welcome back, {session?.name?.split(' ')[0] || 'Trainer'}
         </p>
         <h1 className="mt-2 font-serif text-4xl md:text-5xl tracking-tightish text-ink">
-          Trainer <span className="italic-sage">studio.</span>
+          {active!.workspace.name}<span className="italic-sage">.</span>
         </h1>
       </div>
 
@@ -111,7 +128,7 @@ export default async function DashboardPage() {
                     <div className="min-w-0">
                       <div className="font-medium text-ink truncate">{t.title}</div>
                       <div className="text-xs text-ink/50 truncate">
-                        {t.nursery_name || '—'} · {formatDate(t.created_at)}
+                        {(t as { nursery_name: string | null }).nursery_name || '—'} · {formatDate(t.created_at)}
                       </div>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">

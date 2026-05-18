@@ -65,10 +65,10 @@ export function NewTrainingForm({ icebreakers, surveys }: Props) {
       />
       <div className="grid sm:grid-cols-2 gap-5">
         <Input
-          label="Nursery name"
+          label="Organization"
           value={nurseryName}
           onChange={(e) => setNurseryName(e.target.value)}
-          placeholder="Sunflower Nursery"
+          placeholder="e.g. Acme Co. or Sunflower Nursery"
         />
         <Input
           label="Trainer name"

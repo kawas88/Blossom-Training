@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { getAdminSession } from '@/lib/auth'
+import { getAdminSession, requireRole } from '@/lib/auth'
+import { getActiveWorkspace } from '@/lib/workspace'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { QuestionType } from '@/lib/types'
 
@@ -17,6 +18,11 @@ type IncomingQuestion = {
 export async function POST(req: Request) {
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const active = await getActiveWorkspace()
+  if (!active) return NextResponse.json({ error: 'No active workspace' }, { status: 400 })
+  const workspaceId = active.workspace.id
+  const role = await requireRole(workspaceId, session.user_id, 'trainer')
+  if (!role) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   try {
     const body = await req.json()
     const supabase = createAdminClient()
@@ -26,7 +32,7 @@ export async function POST(req: Request) {
 
     const { data: survey, error } = await supabase
       .from('surveys')
-      .insert({ title, description: body.description || null })
+      .insert({ workspace_id: workspaceId, title, description: body.description || null })
       .select('*')
       .single()
     if (error) throw error

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { getAdminSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireWorkspaceAccess, workspaceErrorResponse } from '@/lib/workspace-guard'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -20,11 +20,18 @@ type IncomingPrompt = {
 }
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  const session = await getAdminSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const supabase = createAdminClient()
+  const { data: existing } = await supabase
+    .from('icebreakers')
+    .select('workspace_id')
+    .eq('id', params.id)
+    .maybeSingle()
+  if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  const access = await requireWorkspaceAccess(existing.workspace_id, 'trainer')
+  if (!access.ok) return workspaceErrorResponse(access)
+
   try {
     const body = await req.json()
-    const supabase = createAdminClient()
 
     const title = String(body.title || '').trim()
     const format = body.format === 'prompts' ? 'prompts' : 'matching'
@@ -93,10 +100,16 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 }
 
 export async function DELETE(_: Request, { params }: { params: { id: string } }) {
-  const session = await getAdminSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const supabase = createAdminClient()
+  const { data: existing } = await supabase
+    .from('icebreakers')
+    .select('workspace_id')
+    .eq('id', params.id)
+    .maybeSingle()
+  if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  const access = await requireWorkspaceAccess(existing.workspace_id, 'admin')
+  if (!access.ok) return workspaceErrorResponse(access)
   try {
-    const supabase = createAdminClient()
     const { error } = await supabase.from('icebreakers').delete().eq('id', params.id)
     if (error) throw error
     return NextResponse.json({ ok: true })

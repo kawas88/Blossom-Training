@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getActiveWorkspace } from '@/lib/workspace'
 import { Pill } from '@/components/ui/Pill'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { formatDate } from '@/lib/utils'
@@ -8,10 +9,13 @@ import { formatDate } from '@/lib/utils'
 export const dynamic = 'force-dynamic'
 
 export default async function IcebreakersListPage() {
+  const active = await getActiveWorkspace()
+  const workspaceId = active!.workspace.id
   const supabase = createAdminClient()
   const { data: ices } = await supabase
     .from('icebreakers')
     .select('id, title, format, created_at')
+    .eq('workspace_id', workspaceId)
     .order('created_at', { ascending: false })
 
   return (

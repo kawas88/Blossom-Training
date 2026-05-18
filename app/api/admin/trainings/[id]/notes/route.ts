@@ -1,18 +1,25 @@
 import { NextResponse } from 'next/server'
-import { getAdminSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireWorkspaceAccess, workspaceErrorResponse } from '@/lib/workspace-guard'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
-  const session = await getAdminSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   try {
+    const supabase = createAdminClient()
+    const { data: training } = await supabase
+      .from('trainings')
+      .select('workspace_id')
+      .eq('id', params.id)
+      .maybeSingle()
+    if (!training) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    const access = await requireWorkspaceAccess(training.workspace_id, 'trainer')
+    if (!access.ok) return workspaceErrorResponse(access)
+
     const body = await req.json()
     const text = String(body.body || '').trim()
     if (!text) return NextResponse.json({ error: 'Note body required' }, { status: 400 })
-    const supabase = createAdminClient()
     const { data, error } = await supabase
       .from('trainer_notes')
       .insert({

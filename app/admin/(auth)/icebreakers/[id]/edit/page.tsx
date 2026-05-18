@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getActiveWorkspace } from '@/lib/workspace'
 import { IcebreakerForm } from '../../IcebreakerForm'
 import type {
   Icebreaker,
@@ -13,11 +14,14 @@ export const dynamic = 'force-dynamic'
 type Params = { id: string }
 
 export default async function EditIcebreakerPage({ params }: { params: Params }) {
+  const active = await getActiveWorkspace()
+  const workspaceId = active!.workspace.id
   const supabase = createAdminClient()
   const { data: ice } = await supabase
     .from('icebreakers')
     .select('*')
     .eq('id', params.id)
+    .eq('workspace_id', workspaceId)
     .maybeSingle<Icebreaker>()
 
   if (!ice) notFound()

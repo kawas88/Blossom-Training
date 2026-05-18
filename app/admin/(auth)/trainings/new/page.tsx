@@ -1,14 +1,25 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getActiveWorkspace } from '@/lib/workspace'
 import { NewTrainingForm } from './NewTrainingForm'
 import type { Icebreaker, Survey } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
 export default async function NewTrainingPage() {
+  const active = await getActiveWorkspace()
+  const workspaceId = active!.workspace.id
   const supabase = createAdminClient()
   const [{ data: ices }, { data: surveys }] = await Promise.all([
-    supabase.from('icebreakers').select('id, title, format').order('created_at', { ascending: false }),
-    supabase.from('surveys').select('id, title').order('created_at', { ascending: false }),
+    supabase
+      .from('icebreakers')
+      .select('id, title, format')
+      .eq('workspace_id', workspaceId)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('surveys')
+      .select('id, title')
+      .eq('workspace_id', workspaceId)
+      .order('created_at', { ascending: false }),
   ])
 
   return (

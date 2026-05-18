@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { getAdminSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireWorkspaceAccess, workspaceErrorResponse } from '@/lib/workspace-guard'
 import { summarizeTraining } from '@/lib/ai'
 import { formatDate, truncate } from '@/lib/utils'
 import type { QuestionType, SurveyQuestion } from '@/lib/types'
@@ -36,11 +36,17 @@ function staticOptionsFor(type: QuestionType, custom: string[] | null): string[]
 }
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
-  const session = await getAdminSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const supabase = createAdminClient()
+  const { data: trainingMeta } = await supabase
+    .from('trainings')
+    .select('workspace_id')
+    .eq('id', params.id)
+    .maybeSingle()
+  if (!trainingMeta) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  const access = await requireWorkspaceAccess(trainingMeta.workspace_id, 'viewer')
+  if (!access.ok) return workspaceErrorResponse(access)
 
   try {
-    const supabase = createAdminClient()
     const [
       { data: training },
       { data: participants },
@@ -166,7 +172,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     doc.setTextColor(...MUTED)
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(9)
-    doc.text('NURSERY TRAINER HUB', margin, margin + 10)
+    doc.text('TRAINZY', margin, margin + 10)
 
     doc.setTextColor(...INK)
     doc.setFont('times', 'normal')
@@ -353,7 +359,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
       doc.setFontSize(8)
       doc.setTextColor(...MUTED)
       doc.text(
-        `Nursery Trainer Hub · Page ${i} of ${pageCount}`,
+        `Trainzy · Page ${i} of ${pageCount}`,
         pageW / 2,
         pageH - 20,
         { align: 'center' },
@@ -381,7 +387,7 @@ function drawHeader(doc: jsPDF, title: string, margin: number) {
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8)
   doc.setTextColor(...MUTED)
-  doc.text('NURSERY TRAINER HUB', margin, margin)
+  doc.text('TRAINZY', margin, margin)
   doc.setFont('times', 'normal')
   doc.setFontSize(22)
   doc.setTextColor(...INK)

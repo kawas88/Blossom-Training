@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getActiveWorkspace } from '@/lib/workspace'
 import { TrainingDashboard } from './TrainingDashboard'
 import type {
   Training,
@@ -21,11 +22,14 @@ export const dynamic = 'force-dynamic'
 type Params = { id: string }
 
 export default async function TrainingDetailPage({ params }: { params: Params }) {
+  const active = await getActiveWorkspace()
+  const workspaceId = active!.workspace.id
   const supabase = createAdminClient()
   const { data: training } = await supabase
     .from('trainings')
     .select('*')
     .eq('id', params.id)
+    .eq('workspace_id', workspaceId)
     .maybeSingle<Training>()
 
   if (!training) notFound()

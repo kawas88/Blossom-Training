@@ -18,7 +18,7 @@ function stripFences(s: string): string {
   return t.trim()
 }
 
-const SENTIMENT_SYSTEM = `You are analyzing open-ended feedback from nursery educators about their experience using the ASQ-3 developmental screening tool. Your goal is to surface actionable themes for the trainer. Be honest, balanced, and specific. Use plain, warm language — no jargon. Always reply with valid JSON only — no markdown, no commentary.`
+const SENTIMENT_SYSTEM = `You are analyzing open-ended feedback that participants left after a training session. Your goal is to surface actionable themes for the trainer. Be honest, balanced, and specific. Use plain, warm language — no jargon. Always reply with valid JSON only — no markdown, no commentary.`
 
 export async function analyzeSentiment(
   questionText: string,
@@ -54,7 +54,7 @@ export async function analyzeSentiment(
   }
 }
 
-const SUMMARY_SYSTEM = `You are summarizing the results of a nursery training session for a printed report. Be concise, warm, and honest — celebrate what's working, name what isn't, and suggest next steps. Reply with valid JSON only.`
+const SUMMARY_SYSTEM = `You are summarizing the results of a training session for a printed report. Be concise, warm, and honest — celebrate what's working, name what isn't, and suggest next steps. Reply with valid JSON only.`
 
 export async function summarizeTraining(input: {
   trainingTitle: string

@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getActiveWorkspace } from '@/lib/workspace'
 import { SurveyEditorForm } from '../../SurveyForm'
 import type { Survey, SurveyQuestion } from '@/lib/types'
 
@@ -8,11 +9,14 @@ export const dynamic = 'force-dynamic'
 type Params = { id: string }
 
 export default async function EditSurveyPage({ params }: { params: Params }) {
+  const active = await getActiveWorkspace()
+  const workspaceId = active!.workspace.id
   const supabase = createAdminClient()
   const { data: survey } = await supabase
     .from('surveys')
     .select('*')
     .eq('id', params.id)
+    .eq('workspace_id', workspaceId)
     .maybeSingle<Survey>()
   if (!survey) notFound()
   const { data: qs } = await supabase
