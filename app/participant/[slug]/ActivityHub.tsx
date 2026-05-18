@@ -5,7 +5,7 @@ import { Check, Heart, Sparkles, ClipboardList, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export type HubActivity = {
-  key: string
+  id: string
   title: string
   description: string
   completed: boolean
@@ -63,7 +63,7 @@ export function ActivityHub({ activities, participantName }: Props) {
         <div className="space-y-3">
           {activities.map((a, i) => (
             <motion.div
-              key={a.key}
+              key={a.id}
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{
@@ -72,7 +72,15 @@ export function ActivityHub({ activities, participantName }: Props) {
                 ease: [0.16, 1, 0.3, 1],
               }}
             >
-              <ActivityButton {...a} />
+              <ActivityButton
+                id={a.id}
+                title={a.title}
+                description={a.description}
+                completed={a.completed}
+                inProgress={a.inProgress}
+                icon={a.icon}
+                onTap={a.onTap}
+              />
             </motion.div>
           ))}
         </div>

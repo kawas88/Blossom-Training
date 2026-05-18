@@ -105,7 +105,7 @@ export function ParticipantFlow({
   const activities: HubActivity[] = []
   if (hasIcebreaker && icebreaker) {
     activities.push({
-      key: 'icebreaker',
+      id: 'icebreaker',
       title: 'Warm-up',
       description:
         icebreaker.format === 'matching'
@@ -119,7 +119,7 @@ export function ParticipantFlow({
   }
   if (hasSurvey) {
     activities.push({
-      key: 'survey',
+      id: 'survey',
       title: 'Feedback',
       description: 'Share your thoughts on the ASQ-3',
       completed: surveyCompleted,
