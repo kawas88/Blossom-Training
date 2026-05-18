@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { ArrowLeft, Check } from 'lucide-react'
 import type {
   Icebreaker,
@@ -169,39 +169,39 @@ export function ParticipantFlow({
       </div>
 
       {/*
-        Canonical AnimatePresence pattern: a single motion.div whose key
-        derives from `stage`. Inner content is selected by stage outside
-        the JSX tree so AnimatePresence sees a single child whose
-        identity changes (rather than multiple sibling conditionals,
-        which can confuse mode="wait" — the outgoing child exits but
-        the new one never mounts in its place).
+        Direct conditional render without an outer AnimatePresence.
+        Past attempts to orchestrate cross-stage transitions via
+        AnimatePresence (multi-sibling conditionals, single keyed
+        motion.div with mode="wait") all failed to reliably mount the
+        new stage after the previous one exited — the outgoing exit
+        completed but the incoming child never appeared.
+
+        Each stage's inner component already runs its own entry
+        animation (ActivityHub fades + staggers its cards,
+        MatchingIcebreaker animates the completion screen,
+        AlreadyCompleted has its own motion.div), so dropping the
+        outer wrapper preserves visual polish while making the
+        transition deterministic. We use key={stage} on the plain div
+        so React fully re-mounts the subtree on stage change — the
+        inner animations replay cleanly.
       */}
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.div
-          key={stage}
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -6 }}
-          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          className="flex-1"
-        >
-          {renderStageContent({
-            stage,
-            training,
-            participant,
-            icebreaker,
-            categories,
-            items,
-            prompts,
-            survey,
-            questions,
-            activities,
-            onIceFinished,
-            onSurveyFinished,
-            backToHub,
-          })}
-        </motion.div>
-      </AnimatePresence>
+      <div key={stage} className="flex-1">
+        {renderStageContent({
+          stage,
+          training,
+          participant,
+          icebreaker,
+          categories,
+          items,
+          prompts,
+          survey,
+          questions,
+          activities,
+          onIceFinished,
+          onSurveyFinished,
+          backToHub,
+        })}
+      </div>
     </main>
   )
 }
