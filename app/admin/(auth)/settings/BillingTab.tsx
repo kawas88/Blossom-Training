@@ -17,6 +17,58 @@ import { cn } from '@/lib/utils'
 
 type Plan = 'personal' | 'organization'
 
+export type CheckoutOutcome =
+  | { kind: 'redirect'; url: string }
+  | { kind: 'duplicate'; message: string }
+  | { kind: 'error'; message: string }
+
+// Shared client-side helper. Centralises the 409 (duplicate-subscription)
+// handling so every "Upgrade" / "Resubscribe" button reacts the same way.
+export async function requestCheckout(input: {
+  workspaceId: string
+  plan: Plan
+  interval: BillingInterval
+  currency: BillingCurrency
+}): Promise<CheckoutOutcome> {
+  try {
+    const res = await fetch('/api/billing/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workspace_id: input.workspaceId,
+        plan: input.plan,
+        interval: input.interval,
+        currency: input.currency,
+      }),
+    })
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: string
+      message?: string
+      url?: string
+    }
+    if (res.status === 409 && data.error === 'subscription_exists') {
+      return {
+        kind: 'duplicate',
+        message:
+          data.message ||
+          'You already have an active subscription. Refresh the page to see your current plan.',
+      }
+    }
+    if (!res.ok || !data.url) {
+      return {
+        kind: 'error',
+        message: data.error || data.message || 'Could not start checkout.',
+      }
+    }
+    return { kind: 'redirect', url: data.url }
+  } catch (e: unknown) {
+    return {
+      kind: 'error',
+      message: e instanceof Error ? e.message : 'Something went wrong',
+    }
+  }
+}
+
 const PRICING: Record<Plan, Record<BillingCurrency, Record<BillingInterval, number>>> = {
   personal: {
     AED: { monthly: 199, annual: 1990 },
@@ -48,7 +100,7 @@ export function BillingTab({ workspace, defaultCurrency, memberCount }: Props) {
     if (!sessionId) return
     if (workspace.plan !== 'trial') {
       // Webhook already arrived — clean URL.
-      router.replace('/admin/settings/billing')
+      router.replace('/admin/settings?tab=billing')
       return
     }
     setPolling(true)
@@ -131,7 +183,7 @@ export function BillingTab({ workspace, defaultCurrency, memberCount }: Props) {
             <span className="font-medium text-ink">Personal</span> · AED 199 / month · 1 seat, unlimited trainings
           </li>
           <li>
-            <span className="font-medium text-ink">Organization</span> · AED 899 / month · up to 10 seats, shared workspace, priority support
+            <span className="font-medium text-ink">Organization</span> · AED 899 / month · up to 10 seats, shared workspace, dedicated onboarding call
           </li>
           <li className="pt-1 text-xs text-ink/50">
             Annual billing saves 17%. Equivalent USD pricing available at checkout.{' '}
@@ -151,7 +203,7 @@ export function BillingTab({ workspace, defaultCurrency, memberCount }: Props) {
             <dt className="text-ink/50">Workspace created</dt>
             <dd className="text-ink">{formatDate(workspace.created_at)}</dd>
           </div>
-          {workspace.trial_ends_at && (
+          {workspace.plan === 'trial' && workspace.trial_ends_at && (
             <div>
               <dt className="text-ink/50">Trial ends</dt>
               <dd className="text-ink">{formatDate(workspace.trial_ends_at)}</dd>
@@ -189,10 +241,12 @@ function TrialUpgradeCard({
   defaultCurrency: BillingCurrency
   daysLeft: number
 }) {
+  const router = useRouter()
   const [currency, setCurrency] = useState<BillingCurrency>(defaultCurrency)
   const [interval, setInterval] = useState<BillingInterval>('monthly')
   const [busy, setBusy] = useState<Plan | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [duplicate, setDuplicate] = useState<string | null>(null)
 
   const expired = daysLeft === 0 && workspace.plan === 'trial'
 
@@ -200,24 +254,23 @@ function TrialUpgradeCard({
     if (busy) return
     setBusy(plan)
     setError(null)
-    try {
-      const res = await fetch('/api/billing/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          workspace_id: workspace.id,
-          plan,
-          interval,
-          currency,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Could not start checkout')
-      window.location.href = data.url
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Something went wrong')
-      setBusy(null)
+    setDuplicate(null)
+    const result = await requestCheckout({
+      workspaceId: workspace.id,
+      plan,
+      interval,
+      currency,
+    })
+    if (result.kind === 'redirect') {
+      window.location.href = result.url
+      return
     }
+    if (result.kind === 'duplicate') {
+      setDuplicate(result.message)
+    } else {
+      setError(result.message)
+    }
+    setBusy(null)
   }
 
   return (
@@ -292,7 +345,13 @@ function TrialUpgradeCard({
         />
       </div>
 
-      {error && (
+      {duplicate && (
+        <DuplicateSubscriptionNotice
+          message={duplicate}
+          onRefresh={() => router.refresh()}
+        />
+      )}
+      {error && !duplicate && (
         <div className="mt-4 rounded-xl bg-error/10 border border-error/20 px-4 py-2.5 text-sm text-error">
           {error}
         </div>
@@ -301,6 +360,32 @@ function TrialUpgradeCard({
       <p className="mt-5 text-xs text-ink/55">
         You&rsquo;ll be redirected to Stripe to complete checkout. Your data stays here — only billing happens on Stripe.
       </p>
+    </div>
+  )
+}
+
+function DuplicateSubscriptionNotice({
+  message,
+  onRefresh,
+}: {
+  message: string
+  onRefresh: () => void
+}) {
+  return (
+    <div className="mt-4 rounded-xl bg-warn/10 border border-warn/30 px-4 py-3 flex items-start gap-3">
+      <AlertCircle className="h-4 w-4 text-warn shrink-0 mt-0.5" />
+      <div className="flex-1 min-w-0 text-sm text-ink">
+        <p>{message}</p>
+        <p className="mt-1 text-ink/70 text-xs">
+          Refresh the page to see your current plan.
+        </p>
+      </div>
+      <button
+        onClick={onRefresh}
+        className="shrink-0 inline-flex items-center rounded-full bg-ink text-cream px-3 py-1.5 text-xs font-medium hover:bg-sage transition-colors"
+      >
+        Refresh
+      </button>
     </div>
   )
 }
@@ -427,33 +512,34 @@ function CanceledCard({
   workspace: Workspace
   defaultCurrency: BillingCurrency
 }) {
+  const router = useRouter()
   const [currency, setCurrency] = useState<BillingCurrency>(defaultCurrency)
   const [interval, setInterval] = useState<BillingInterval>('monthly')
   const [busy, setBusy] = useState<Plan | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [duplicate, setDuplicate] = useState<string | null>(null)
 
   async function startCheckout(plan: Plan) {
     if (busy) return
     setBusy(plan)
     setError(null)
-    try {
-      const res = await fetch('/api/billing/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          workspace_id: workspace.id,
-          plan,
-          interval,
-          currency,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Could not start checkout')
-      window.location.href = data.url
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Something went wrong')
-      setBusy(null)
+    setDuplicate(null)
+    const result = await requestCheckout({
+      workspaceId: workspace.id,
+      plan,
+      interval,
+      currency,
+    })
+    if (result.kind === 'redirect') {
+      window.location.href = result.url
+      return
     }
+    if (result.kind === 'duplicate') {
+      setDuplicate(result.message)
+    } else {
+      setError(result.message)
+    }
+    setBusy(null)
   }
 
   return (
@@ -515,7 +601,13 @@ function CanceledCard({
           busy={busy === 'organization'}
         />
       </div>
-      {error && (
+      {duplicate && (
+        <DuplicateSubscriptionNotice
+          message={duplicate}
+          onRefresh={() => router.refresh()}
+        />
+      )}
+      {error && !duplicate && (
         <div className="mt-4 rounded-xl bg-error/10 border border-error/20 px-4 py-2.5 text-sm text-error">
           {error}
         </div>

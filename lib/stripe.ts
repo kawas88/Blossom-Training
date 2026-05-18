@@ -132,3 +132,53 @@ export async function getOrCreateStripeCustomer(
 
   return customer.id
 }
+
+// ---------------------------------------------------------------------
+// Find a Stripe customer that was previously created for this workspace
+// but whose ID never made it back into our DB (e.g. checkout flow
+// crashed before the workspace row update, or webhook delivery was
+// delayed). Customers carry `workspace_id` in their metadata.
+//
+// Returns null if no such customer exists.
+// ---------------------------------------------------------------------
+export async function findStripeCustomerByWorkspaceId(
+  workspaceId: string,
+): Promise<Stripe.Customer | null> {
+  const client = getStripe()
+  const list = await client.customers.search({
+    query: `metadata['workspace_id']:'${workspaceId}'`,
+    limit: 1,
+  })
+  const first = list.data[0]
+  // customers.search never returns deleted records, so a plain presence
+  // check is all we need.
+  return first ?? null
+}
+
+// ---------------------------------------------------------------------
+// Returns a non-empty list of subscriptions in any status that
+// represents a live billing relationship: trialing, active, past_due,
+// unpaid, incomplete. (`canceled` and `incomplete_expired` mean the
+// customer is free to resubscribe.)
+// ---------------------------------------------------------------------
+const LIVE_SUBSCRIPTION_STATUSES: Stripe.Subscription.Status[] = [
+  'trialing',
+  'active',
+  'past_due',
+  'unpaid',
+  'incomplete',
+]
+
+export async function listLiveSubscriptionsForCustomer(
+  customerId: string,
+): Promise<Stripe.Subscription[]> {
+  const client = getStripe()
+  const list = await client.subscriptions.list({
+    customer: customerId,
+    status: 'all',
+    limit: 10,
+  })
+  return list.data.filter((s) =>
+    LIVE_SUBSCRIPTION_STATUSES.includes(s.status),
+  )
+}

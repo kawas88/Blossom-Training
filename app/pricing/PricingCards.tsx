@@ -49,7 +49,7 @@ const FEATURES: Record<Plan, { highlight?: string; items: string[] }> = {
       'Up to 10 trainer seats',
       'Workspace member invitations',
       'Role-based permissions',
-      'Priority support',
+      'Dedicated onboarding call',
     ],
   },
 }
@@ -153,6 +153,7 @@ function PlanCard({
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [duplicate, setDuplicate] = useState(false)
 
   const labels = PLAN_LABELS[plan]
   const features = FEATURES[plan]
@@ -176,6 +177,7 @@ function PlanCard({
     if (busy || !activeWorkspaceId) return
     setBusy(true)
     setError(null)
+    setDuplicate(false)
     try {
       const res = await fetch('/api/billing/checkout', {
         method: 'POST',
@@ -187,8 +189,19 @@ function PlanCard({
           currency,
         }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Could not start checkout')
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string
+        message?: string
+        url?: string
+      }
+      if (res.status === 409 && data.error === 'subscription_exists') {
+        setDuplicate(true)
+        setBusy(false)
+        return
+      }
+      if (!res.ok || !data.url) {
+        throw new Error(data.error || data.message || 'Could not start checkout')
+      }
       window.location.href = data.url
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Something went wrong')
@@ -300,7 +313,34 @@ function PlanCard({
         ))}
       </ul>
 
-      {error && (
+      {duplicate && (
+        <div
+          className={cn(
+            'mt-4 rounded-xl px-3 py-2.5 text-xs flex items-start gap-2',
+            accent
+              ? 'bg-cream/15 border border-cream/30 text-cream'
+              : 'bg-warn/10 border border-warn/30 text-ink',
+          )}
+        >
+          <div className="flex-1 min-w-0">
+            <p>
+              You already have an active subscription. Refresh to see your current plan.
+            </p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className={cn(
+              'shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium',
+              accent
+                ? 'bg-cream text-ink hover:bg-sand'
+                : 'bg-ink text-cream hover:bg-sage',
+            )}
+          >
+            Refresh
+          </button>
+        </div>
+      )}
+      {error && !duplicate && (
         <div className="mt-4 rounded-xl bg-error/10 border border-error/20 px-3 py-2 text-xs text-error">
           {error}
         </div>

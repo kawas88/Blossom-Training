@@ -168,25 +168,41 @@ export function ParticipantFlow({
         Stage: {stage}
       </div>
 
+      {/*
+        Each stage owns its own motion.div so AnimatePresence can preserve
+        the outgoing stage's full content during exit (otherwise inner
+        conditionals re-evaluate against the new stage and the outgoing
+        wrapper renders empty — which produced a blank-screen flash
+        between Warm-up submit and Hub mount).
+      */}
       <AnimatePresence mode="wait">
-        <motion.div
-          key={stage}
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -6 }}
-          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          className="flex-1"
-        >
-          {stage === 'hub' && (
+        {stage === 'hub' && (
+          <motion.div
+            key="hub"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="flex-1"
+          >
             <ActivityHub
               activities={activities}
               participantName={participant.display_name}
             />
-          )}
+          </motion.div>
+        )}
 
-          {stage === 'icebreaker' &&
-            icebreaker &&
-            icebreaker.format === 'matching' && (
+        {stage === 'icebreaker' &&
+          icebreaker &&
+          icebreaker.format === 'matching' && (
+            <motion.div
+              key="icebreaker-matching"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              className="flex-1"
+            >
               <MatchingIcebreaker
                 training={training}
                 participant={participant}
@@ -195,11 +211,20 @@ export function ParticipantFlow({
                 items={items}
                 onComplete={onIceFinished}
               />
-            )}
+            </motion.div>
+          )}
 
-          {stage === 'icebreaker' &&
-            icebreaker &&
-            icebreaker.format === 'prompts' && (
+        {stage === 'icebreaker' &&
+          icebreaker &&
+          icebreaker.format === 'prompts' && (
+            <motion.div
+              key="icebreaker-prompts"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              className="flex-1"
+            >
               <PromptsIcebreaker
                 training={training}
                 participant={participant}
@@ -207,9 +232,18 @@ export function ParticipantFlow({
                 prompts={prompts}
                 onComplete={onIceFinished}
               />
-            )}
+            </motion.div>
+          )}
 
-          {stage === 'survey' && survey && (
+        {stage === 'survey' && survey && (
+          <motion.div
+            key="survey"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="flex-1"
+          >
             <SurveyForm
               training={training}
               participant={participant}
@@ -217,15 +251,33 @@ export function ParticipantFlow({
               questions={questions}
               onComplete={onSurveyFinished}
             />
-          )}
+          </motion.div>
+        )}
 
-          {stage === 'icebreaker-done' && (
+        {stage === 'icebreaker-done' && (
+          <motion.div
+            key="icebreaker-done"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="flex-1"
+          >
             <AlreadyCompleted onBack={backToHub} label="warm-up" />
-          )}
-          {stage === 'survey-done' && (
+          </motion.div>
+        )}
+        {stage === 'survey-done' && (
+          <motion.div
+            key="survey-done"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="flex-1"
+          >
             <AlreadyCompleted onBack={backToHub} label="feedback" />
-          )}
-        </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
     </main>
   )

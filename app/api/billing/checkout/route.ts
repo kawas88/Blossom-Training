@@ -5,6 +5,8 @@ import {
   stripe,
   lookupPriceId,
   getOrCreateStripeCustomer,
+  findStripeCustomerByWorkspaceId,
+  listLiveSubscriptionsForCustomer,
 } from '@/lib/stripe'
 import type {
   BillingCurrency,
@@ -27,6 +29,9 @@ function isCurrency(v: unknown): v is BillingCurrency {
   return v === 'AED' || v === 'USD'
 }
 
+const DUPLICATE_MESSAGE =
+  'You already have an active subscription. Manage it from Settings → Billing.'
+
 export async function POST(req: Request) {
   try {
     const body = await req.json()
@@ -44,23 +49,49 @@ export async function POST(req: Request) {
 
     const access = await requireWorkspaceAccess(workspaceId, 'admin')
     if (!access.ok) return workspaceErrorResponse(access)
-    const workspace = access.workspace
+    let workspace = access.workspace as Workspace
 
-    // Block double-subscription. 'canceled' lets them resubscribe; everything
-    // else means there's an active subscription Stripe is managing.
-    if (
-      workspace.stripe_subscription_id &&
-      workspace.stripe_subscription_status &&
-      workspace.stripe_subscription_status !== 'canceled' &&
-      workspace.stripe_subscription_status !== 'incomplete_expired'
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            'You already have an active subscription. Manage it from your billing settings.',
-        },
-        { status: 400 },
-      )
+    // -----------------------------------------------------------------
+    // Authoritative duplicate-subscription check.
+    //
+    // The local workspace row's stripe_subscription_status can be stale
+    // (e.g. checkout completed but webhook hasn't synced yet). To stop
+    // the user double-paying, ask Stripe directly.
+    //
+    // Steps:
+    //   1. If the workspace already has a customer ID, use it.
+    //   2. Otherwise, search Stripe for a customer with this
+    //      workspace_id in metadata (an orphan from a previous flow).
+    //      If found, link it to the workspace row before checking.
+    //   3. List subscriptions for that customer. If any are in a "live"
+    //      status (trialing/active/past_due/unpaid/incomplete), return
+    //      409 Conflict.
+    // -----------------------------------------------------------------
+    let customerId = workspace.stripe_customer_id ?? null
+    if (!customerId) {
+      const orphan = await findStripeCustomerByWorkspaceId(workspace.id)
+      if (orphan) {
+        customerId = orphan.id
+        const supabase = createAdminClient()
+        await supabase
+          .from('workspaces')
+          .update({ stripe_customer_id: orphan.id })
+          .eq('id', workspace.id)
+        workspace = { ...workspace, stripe_customer_id: orphan.id }
+      }
+    }
+
+    if (customerId) {
+      const liveSubs = await listLiveSubscriptionsForCustomer(customerId)
+      if (liveSubs.length > 0) {
+        return NextResponse.json(
+          {
+            error: 'subscription_exists',
+            message: DUPLICATE_MESSAGE,
+          },
+          { status: 409 },
+        )
+      }
     }
 
     const priceId = lookupPriceId(plan, interval, currency)
@@ -81,8 +112,8 @@ export async function POST(req: Request) {
     const ownerEmail = ownerRow?.email || access.session.email
     const ownerName = ownerRow?.name || access.session.name
 
-    const customerId = await getOrCreateStripeCustomer(
-      workspace as Workspace,
+    const finalCustomerId = await getOrCreateStripeCustomer(
+      workspace,
       ownerEmail,
       ownerName,
     )
@@ -93,10 +124,10 @@ export async function POST(req: Request) {
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
-      customer: customerId,
+      customer: finalCustomerId,
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${appUrl}/admin/settings/billing?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl}/admin/settings/billing`,
+      success_url: `${appUrl}/admin/settings?tab=billing&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${appUrl}/admin/settings?tab=billing`,
       allow_promotion_codes: true,
       billing_address_collection: 'auto',
       automatic_tax: { enabled: false },
