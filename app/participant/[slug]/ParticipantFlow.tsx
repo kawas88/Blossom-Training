@@ -169,115 +169,38 @@ export function ParticipantFlow({
       </div>
 
       {/*
-        Each stage owns its own motion.div so AnimatePresence can preserve
-        the outgoing stage's full content during exit (otherwise inner
-        conditionals re-evaluate against the new stage and the outgoing
-        wrapper renders empty — which produced a blank-screen flash
-        between Warm-up submit and Hub mount).
+        Canonical AnimatePresence pattern: a single motion.div whose key
+        derives from `stage`. Inner content is selected by stage outside
+        the JSX tree so AnimatePresence sees a single child whose
+        identity changes (rather than multiple sibling conditionals,
+        which can confuse mode="wait" — the outgoing child exits but
+        the new one never mounts in its place).
       */}
-      <AnimatePresence mode="wait">
-        {stage === 'hub' && (
-          <motion.div
-            key="hub"
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="flex-1"
-          >
-            <ActivityHub
-              activities={activities}
-              participantName={participant.display_name}
-            />
-          </motion.div>
-        )}
-
-        {stage === 'icebreaker' &&
-          icebreaker &&
-          icebreaker.format === 'matching' && (
-            <motion.div
-              key="icebreaker-matching"
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              className="flex-1"
-            >
-              <MatchingIcebreaker
-                training={training}
-                participant={participant}
-                icebreaker={icebreaker}
-                categories={categories}
-                items={items}
-                onComplete={onIceFinished}
-              />
-            </motion.div>
-          )}
-
-        {stage === 'icebreaker' &&
-          icebreaker &&
-          icebreaker.format === 'prompts' && (
-            <motion.div
-              key="icebreaker-prompts"
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              className="flex-1"
-            >
-              <PromptsIcebreaker
-                training={training}
-                participant={participant}
-                icebreaker={icebreaker}
-                prompts={prompts}
-                onComplete={onIceFinished}
-              />
-            </motion.div>
-          )}
-
-        {stage === 'survey' && survey && (
-          <motion.div
-            key="survey"
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="flex-1"
-          >
-            <SurveyForm
-              training={training}
-              participant={participant}
-              survey={survey}
-              questions={questions}
-              onComplete={onSurveyFinished}
-            />
-          </motion.div>
-        )}
-
-        {stage === 'icebreaker-done' && (
-          <motion.div
-            key="icebreaker-done"
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="flex-1"
-          >
-            <AlreadyCompleted onBack={backToHub} label="warm-up" />
-          </motion.div>
-        )}
-        {stage === 'survey-done' && (
-          <motion.div
-            key="survey-done"
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="flex-1"
-          >
-            <AlreadyCompleted onBack={backToHub} label="feedback" />
-          </motion.div>
-        )}
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={stage}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+          className="flex-1"
+        >
+          {renderStageContent({
+            stage,
+            training,
+            participant,
+            icebreaker,
+            categories,
+            items,
+            prompts,
+            survey,
+            questions,
+            activities,
+            onIceFinished,
+            onSurveyFinished,
+            backToHub,
+          })}
+        </motion.div>
       </AnimatePresence>
     </main>
   )
@@ -296,6 +219,89 @@ function stageLabel(stage: Stage): string | null {
     default:
       return null
   }
+}
+
+type StageRenderArgs = {
+  stage: Stage
+  training: Training
+  participant: Participant
+  icebreaker: Icebreaker | null
+  categories: IcebreakerCategory[]
+  items: IcebreakerItem[]
+  prompts: IcebreakerPrompt[]
+  survey: Survey | null
+  questions: SurveyQuestion[]
+  activities: HubActivity[]
+  onIceFinished: () => void
+  onSurveyFinished: () => void
+  backToHub: () => void
+}
+
+function renderStageContent(args: StageRenderArgs) {
+  const {
+    stage,
+    training,
+    participant,
+    icebreaker,
+    categories,
+    items,
+    prompts,
+    survey,
+    questions,
+    activities,
+    onIceFinished,
+    onSurveyFinished,
+    backToHub,
+  } = args
+  if (stage === 'hub') {
+    return (
+      <ActivityHub
+        activities={activities}
+        participantName={participant.display_name}
+      />
+    )
+  }
+  if (stage === 'icebreaker' && icebreaker && icebreaker.format === 'matching') {
+    return (
+      <MatchingIcebreaker
+        training={training}
+        participant={participant}
+        icebreaker={icebreaker}
+        categories={categories}
+        items={items}
+        onComplete={onIceFinished}
+      />
+    )
+  }
+  if (stage === 'icebreaker' && icebreaker && icebreaker.format === 'prompts') {
+    return (
+      <PromptsIcebreaker
+        training={training}
+        participant={participant}
+        icebreaker={icebreaker}
+        prompts={prompts}
+        onComplete={onIceFinished}
+      />
+    )
+  }
+  if (stage === 'survey' && survey) {
+    return (
+      <SurveyForm
+        training={training}
+        participant={participant}
+        survey={survey}
+        questions={questions}
+        onComplete={onSurveyFinished}
+      />
+    )
+  }
+  if (stage === 'icebreaker-done') {
+    return <AlreadyCompleted onBack={backToHub} label="warm-up" />
+  }
+  if (stage === 'survey-done') {
+    return <AlreadyCompleted onBack={backToHub} label="feedback" />
+  }
+  return null
 }
 
 function AlreadyCompleted({

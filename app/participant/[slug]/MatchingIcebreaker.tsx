@@ -73,6 +73,7 @@ export function MatchingIcebreaker({
   const [shakeId, setShakeId] = useState<string | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [submitting, setSubmitting] = useState(false)
+  const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showInstructions, setShowInstructions] = useState(true)
 
@@ -136,7 +137,7 @@ export function MatchingIcebreaker({
   }, [items])
 
   async function submit() {
-    if (submitting) return
+    if (submitting || saved) return
     setSubmitting(true)
     setError(null)
     try {
@@ -159,7 +160,18 @@ export function MatchingIcebreaker({
         const data = await res.json().catch(() => ({}))
         throw new Error(data.error || 'Could not save responses.')
       }
-      onComplete()
+      // Flip to a "saved" state so the button confirms success before we
+      // hand control back to the parent. Decoupling the parent callback
+      // from the fetch resolution via setTimeout also gives React and
+      // AnimatePresence a clean tick to process the stage transition —
+      // without this delay the matching subtree was entering its exit
+      // animation in the same microtask as the parent state update,
+      // and the hub child failed to mount in its place.
+      setSubmitting(false)
+      setSaved(true)
+      window.setTimeout(() => {
+        onComplete()
+      }, 800)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Something went wrong')
       setSubmitting(false)
@@ -203,8 +215,12 @@ export function MatchingIcebreaker({
             </div>
           )}
           <div className="mt-8">
-            <Button size="lg" onClick={submit} disabled={submitting}>
-              {submitting ? 'Saving…' : 'Save and return →'}
+            <Button
+              size="lg"
+              onClick={submit}
+              disabled={submitting || saved}
+            >
+              {saved ? 'Saved ✓' : submitting ? 'Saving…' : 'Save and return →'}
             </Button>
           </div>
         </motion.div>
