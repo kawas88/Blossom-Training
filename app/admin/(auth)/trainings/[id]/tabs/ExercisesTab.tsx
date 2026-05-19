@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -58,6 +58,14 @@ export function ExercisesTab({
   const [showAdd, setShowAdd] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+
+  // Re-sync the local list whenever the server-rendered prop changes — this
+  // is what makes the visible list update after Add (the old code only
+  // updated the parent's count via router.refresh(); the tab body kept its
+  // initial-render state until a hard reload).
+  useEffect(() => {
+    setItems(trainingExercises)
+  }, [trainingExercises])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),

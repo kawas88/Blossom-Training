@@ -164,18 +164,48 @@ async function cancelWorkspaceFromSubscription(
   sub: Stripe.Subscription,
 ): Promise<string | null> {
   const supabase = createAdminClient()
+  const customerId =
+    typeof sub.customer === 'string' ? sub.customer : sub.customer.id
+
   const workspaceId = await resolveWorkspaceIdFromSubscription(sub)
-  if (!workspaceId) return null
-  const { error } = await supabase
+  if (!workspaceId) {
+    console.warn(
+      'webhook: subscription.deleted could not resolve workspace',
+      {
+        subscriptionId: sub.id,
+        customerId,
+        metadataWorkspaceId: sub.metadata?.workspace_id ?? null,
+      },
+    )
+    return null
+  }
+
+  // Wider net than .eq('id', workspaceId): also match the row whose
+  // stripe_subscription_id or stripe_customer_id points at this sub. If a
+  // prior event cleared one of those columns, the cancel update still
+  // lands on the right row.
+  const { data: affected, error } = await supabase
     .from('workspaces')
     .update({
       plan: 'canceled',
       stripe_subscription_status: 'canceled',
       cancel_at_period_end: false,
     })
-    .eq('id', workspaceId)
+    .or(
+      [
+        `id.eq.${workspaceId}`,
+        `stripe_subscription_id.eq.${sub.id}`,
+        `stripe_customer_id.eq.${customerId}`,
+      ].join(','),
+    )
+    .select('id')
   if (error) {
     console.error(`webhook: failed to cancel workspace ${workspaceId}`, error)
+  } else if (!affected || affected.length === 0) {
+    console.warn(
+      'webhook: subscription.deleted update matched zero rows',
+      { workspaceId, subscriptionId: sub.id, customerId },
+    )
   }
   return workspaceId
 }
@@ -259,10 +289,20 @@ async function resolveWorkspaceIdFromSubscription(
     return fromSubMeta
   }
 
-  // 2. Look up by stripe_customer_id
+  const supabase = createAdminClient()
+
+  // 2. Look up by stripe_subscription_id (most reliable for cancel events,
+  //    where the customer may already have been cleared by a prior event).
+  const { data: bySubscription } = await supabase
+    .from('workspaces')
+    .select('id')
+    .eq('stripe_subscription_id', sub.id)
+    .maybeSingle()
+  if (bySubscription?.id) return bySubscription.id
+
+  // 3. Look up by stripe_customer_id
   const customerId =
     typeof sub.customer === 'string' ? sub.customer : sub.customer.id
-  const supabase = createAdminClient()
   const { data } = await supabase
     .from('workspaces')
     .select('id')

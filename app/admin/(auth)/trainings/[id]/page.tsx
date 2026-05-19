@@ -5,6 +5,7 @@ import {
   listExercisesForWorkspace,
   listTrainingExercises,
   type Exercise,
+  type ExerciseResponse,
   type MatchingConfig,
   type TrainingExerciseWithDef,
 } from '@/lib/exercises'
@@ -50,6 +51,7 @@ export default async function TrainingDetailPage({ params }: { params: Params })
     { data: notes },
     trainingExercises,
     workspaceExercises,
+    { data: rawExerciseResponses },
   ] = await Promise.all([
     supabase
       .from('participants')
@@ -67,24 +69,26 @@ export default async function TrainingDetailPage({ params }: { params: Params })
     supabase.from('trainer_notes').select('*').eq('training_id', training.id).order('created_at', { ascending: false }),
     listTrainingExercises(training.id),
     listExercisesForWorkspace(workspaceId),
-  ])
-
-  // For the legacy IcebreakerTab UI, build matching responses by reading from
-  // exercise_responses (new home for matching submissions) and flattening
-  // back to the one-row-per-item shape the tab expects.
-  const matchingExercise = trainingExercises.find((e) => e.type === 'matching') ?? null
-  let matchingResponses: IcebreakerMatchingResponse[] = []
-  if (matchingExercise) {
-    const { data: exerciseRows } = await supabase
+    supabase
       .from('exercise_responses')
       .select('*')
-      .eq('exercise_id', matchingExercise.id)
-    matchingResponses = flattenMatchingResponses(
-      training.id,
-      matchingExercise,
-      exerciseRows ?? [],
-    )
-  }
+      .eq('training_id', training.id)
+      .order('completed_at', { ascending: true }),
+  ])
+
+  const exerciseResponses = (rawExerciseResponses ?? []) as ExerciseResponse[]
+
+  // Flatten matching responses back into the legacy per-item shape so the
+  // (still-handy) IcebreakerTab can keep working without a rewrite.
+  const matchingExercise =
+    trainingExercises.find((e) => e.type === 'matching') ?? null
+  const matchingResponses: IcebreakerMatchingResponse[] = matchingExercise
+    ? flattenMatchingResponses(
+        training.id,
+        matchingExercise,
+        exerciseResponses.filter((r) => r.exercise_id === matchingExercise.id),
+      )
+    : []
 
   // Build the legacy categories/items view from whichever source has data.
   // For migrated icebreakers both sources exist; for brand-new matching
@@ -163,6 +167,7 @@ export default async function TrainingDetailPage({ params }: { params: Params })
       trainingExercises={trainingExercises}
       workspaceExercises={workspaceExercises}
       matchingExerciseId={matchingExercise?.id ?? null}
+      exerciseResponses={exerciseResponses}
     />
   )
 }
