@@ -1,29 +1,27 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
 import { Check, Sparkles } from 'lucide-react'
 import type {
-  Icebreaker,
-  IcebreakerCategory,
-  IcebreakerItem,
-  Training,
-  Participant,
-} from '@/lib/types'
+  AgeGroup,
+  Exercise,
+  MatchingConfig,
+  Milestone,
+} from '@/lib/exercises'
+import type { Training, Participant } from '@/lib/types'
 import { Button } from '@/components/ui/Button'
 
 type Props = {
   training: Training
   participant: Participant
-  icebreaker: Icebreaker
-  categories: IcebreakerCategory[]
-  items: IcebreakerItem[]
+  exercise: Exercise & { config: MatchingConfig }
   onComplete: () => void
 }
 
 type ItemState = {
   itemId: string
-  placedCategoryId: string | null // when correctly placed
+  placedCategoryId: string | null
   firstAttemptCategoryId: string | null
   attempts: number
   wasCorrect: boolean
@@ -44,15 +42,16 @@ function shuffle<T>(arr: T[]): T[] {
   return out
 }
 
-export function MatchingIcebreaker({
+export function MatchingPlayer({
   training,
   participant,
-  icebreaker,
-  categories,
-  items,
+  exercise,
   onComplete,
 }: Props) {
-  // Stable randomized order
+  const categories: AgeGroup[] = exercise.config.ageGroups ?? []
+  const items: Milestone[] = exercise.config.milestones ?? []
+  const correctPlacements = exercise.config.correctPlacements ?? {}
+
   const shuffled = useMemo(() => shuffle(items), [items])
 
   const [states, setStates] = useState<Record<string, ItemState>>(() => {
@@ -95,9 +94,9 @@ export function MatchingIcebreaker({
 
   function tapCategory(categoryId: string) {
     if (!selected) return
-    const item = items.find((i) => i.id === selected)
-    if (!item) return
-    const correct = item.correct_category_id === categoryId
+    const correctCategoryId = correctPlacements[selected]
+    if (!correctCategoryId) return
+    const correct = correctCategoryId === categoryId
 
     setStates((prev) => {
       const cur = prev[selected]
@@ -125,12 +124,11 @@ export function MatchingIcebreaker({
     }
   }
 
-  // Domain legend
   const legend = useMemo(() => {
     const map = new Map<string, string>()
     for (const it of items) {
-      if (it.tag_label && it.tag_color && !map.has(it.tag_label)) {
-        map.set(it.tag_label, it.tag_color)
+      if (it.tagLabel && it.tagColor && !map.has(it.tagLabel)) {
+        map.set(it.tagLabel, it.tagColor)
       }
     }
     return Array.from(map.entries()).map(([label, color]) => ({ label, color }))
@@ -141,46 +139,40 @@ export function MatchingIcebreaker({
     setSubmitting(true)
     setError(null)
     try {
-      const responses = Object.values(states).map((s) => ({
-        item_id: s.itemId,
-        first_attempt_category_id: s.firstAttemptCategoryId,
-        was_correct: s.wasCorrect,
-        attempts: Math.max(1, s.attempts),
-      }))
-      const res = await fetch('/api/responses/icebreaker-matching', {
+      // Build the new response shape.
+      const placements: Record<string, string | null> = {}
+      const firstAttempts: Record<string, string> = {}
+      const attempts: Record<string, number> = {}
+      for (const s of Object.values(states)) {
+        placements[s.itemId] = s.wasCorrect ? s.placedCategoryId : null
+        firstAttempts[s.itemId] = s.firstAttemptCategoryId ?? ''
+        attempts[s.itemId] = Math.max(1, s.attempts)
+      }
+      const res = await fetch('/api/exercises/respond', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          training_id: training.id,
-          participant_id: participant.id,
-          responses,
+          trainingId: training.id,
+          exerciseId: exercise.id,
+          participantId: participant.id,
+          response: { placements, firstAttempts, attempts },
         }),
       })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok && res.status !== 409) {
         throw new Error(data.error || 'Could not save responses.')
       }
-      // Flip to a "saved" state so the button confirms success before we
-      // hand control back to the parent. Decoupling the parent callback
-      // from the fetch resolution via setTimeout also gives React and
-      // AnimatePresence a clean tick to process the stage transition —
-      // without this delay the matching subtree was entering its exit
-      // animation in the same microtask as the parent state update,
-      // and the hub child failed to mount in its place.
       setSubmitting(false)
       setSaved(true)
-      window.setTimeout(() => {
-        onComplete()
-      }, 800)
+      window.setTimeout(() => onComplete(), 800)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Something went wrong')
       setSubmitting(false)
     }
   }
 
-  // Group placed items per category
   const placedByCategory = useMemo(() => {
-    const map: Record<string, IcebreakerItem[]> = {}
+    const map: Record<string, Milestone[]> = {}
     for (const c of categories) map[c.id] = []
     for (const it of items) {
       const s = states[it.id]
@@ -232,17 +224,15 @@ export function MatchingIcebreaker({
     <LayoutGroup>
       <div className="px-3 md:px-6 py-6 md:py-8 pb-32">
         <div className="mx-auto max-w-5xl">
-          {/* Heading + progress */}
           <div className="mb-4">
             <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-ink/60">
               Warm-up
             </p>
             <h1 className="mt-1 font-serif text-2xl md:text-4xl tracking-tightish text-ink leading-tight text-balance">
-              {icebreaker.title}
+              {exercise.title}
             </h1>
           </div>
 
-          {/* Progress bar */}
           <div className="mb-5">
             <div className="flex justify-between text-xs text-ink/60 mb-1.5 font-mono">
               <span>
@@ -262,12 +252,11 @@ export function MatchingIcebreaker({
             </div>
           </div>
 
-          {/* Instructions (collapsible) */}
-          {showInstructions && icebreaker.instructions && (
+          {showInstructions && exercise.config.instructions && (
             <div className="mb-5 rounded-2xl bg-white border border-ink/10 p-4 md:p-5">
               <div className="flex items-start justify-between gap-3">
                 <p className="text-sm text-ink/70 leading-relaxed">
-                  {icebreaker.instructions}
+                  {exercise.config.instructions}
                 </p>
                 <button
                   onClick={() => setShowInstructions(false)}
@@ -280,7 +269,6 @@ export function MatchingIcebreaker({
             </div>
           )}
 
-          {/* Card bank */}
           <section className="mb-6">
             <h2 className="font-mono text-[10px] tracking-[0.2em] uppercase text-ink/60 mb-2">
               Milestone cards
@@ -321,10 +309,10 @@ export function MatchingIcebreaker({
                             .filter(Boolean)
                             .join(' ')}
                         >
-                          {it.tag_color && (
+                          {it.tagColor && (
                             <span
                               className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
-                              style={{ backgroundColor: it.tag_color }}
+                              style={{ backgroundColor: it.tagColor }}
                               aria-hidden="true"
                             />
                           )}
@@ -335,7 +323,6 @@ export function MatchingIcebreaker({
                 </AnimatePresence>
               </div>
 
-              {/* Domain legend */}
               {legend.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-ink/10 flex flex-wrap gap-x-4 gap-y-1.5">
                   {legend.map((l) => (
@@ -355,7 +342,6 @@ export function MatchingIcebreaker({
             </div>
           </section>
 
-          {/* Categories grid */}
           <section>
             <h2 className="font-mono text-[10px] tracking-[0.2em] uppercase text-ink/60 mb-2">
               Age groups
@@ -406,7 +392,6 @@ export function MatchingIcebreaker({
           </section>
         </div>
 
-        {/* Toasts */}
         <div className="fixed inset-x-0 bottom-6 z-40 pointer-events-none flex flex-col items-center gap-2 px-4">
           <AnimatePresence>
             {toasts.map((t) => (

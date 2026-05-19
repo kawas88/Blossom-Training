@@ -4,124 +4,143 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Check } from 'lucide-react'
 import type {
-  Icebreaker,
-  IcebreakerCategory,
-  IcebreakerItem,
-  IcebreakerPrompt,
   Survey,
   SurveyQuestion,
   Training,
   Participant,
 } from '@/lib/types'
+import {
+  EXERCISE_TYPE_LABELS,
+  isMatchingExercise,
+  isQuizExercise,
+  isReflectionExercise,
+  type Exercise,
+  type ExerciseType,
+  type MatchingConfig,
+  type QuizConfig,
+  type ReflectionConfig,
+  type TrainingExerciseWithDef,
+} from '@/lib/exercises'
 import { Button } from '@/components/ui/Button'
-import { MatchingIcebreaker } from './MatchingIcebreaker'
-import { PromptsIcebreaker } from './PromptsIcebreaker'
+import { MatchingPlayer } from './MatchingPlayer'
+import { QuizPlayer } from './QuizPlayer'
+import { ReflectionPlayer } from './ReflectionPlayer'
 import { SurveyForm } from './SurveyForm'
 import { ActivityHub, type HubActivity } from './ActivityHub'
 
 type Stage =
-  | 'hub'
-  | 'icebreaker'
-  | 'survey'
-  | 'icebreaker-done'
-  | 'survey-done'
+  | { kind: 'hub' }
+  | { kind: 'exercise'; exerciseId: string }
+  | { kind: 'exercise-done'; exerciseId: string }
+  | { kind: 'survey' }
+  | { kind: 'survey-done' }
 
 type Props = {
   training: Training
   participant: Participant
-  icebreaker: Icebreaker | null
-  categories: IcebreakerCategory[]
-  items: IcebreakerItem[]
-  prompts: IcebreakerPrompt[]
+  exercises: TrainingExerciseWithDef[]
+  completedExerciseIds: string[]
   survey: Survey | null
   questions: SurveyQuestion[]
+}
+
+const EXERCISE_ICON: Record<ExerciseType, 'sparkles' | 'clipboard'> = {
+  matching: 'sparkles',
+  quiz: 'sparkles',
+  reflection: 'clipboard',
+  word_cloud: 'sparkles',
+  ranking: 'sparkles',
+  annotation: 'sparkles',
+  scenario: 'sparkles',
+}
+
+const EXERCISE_BLURB: Record<ExerciseType, string> = {
+  matching: 'Match items to their groups',
+  quiz: 'A few multiple-choice questions',
+  reflection: 'A short written reflection',
+  word_cloud: 'Add words to the cloud',
+  ranking: 'Rank in order',
+  annotation: 'Tap regions of an image',
+  scenario: 'A branching story',
 }
 
 export function ParticipantFlow({
   training,
   participant,
-  icebreaker,
-  categories,
-  items,
-  prompts,
+  exercises,
+  completedExerciseIds,
   survey,
   questions,
 }: Props) {
-  const [stage, setStage] = useState<Stage>('hub')
+  const [stage, setStage] = useState<Stage>({ kind: 'hub' })
 
-  const [iceCompleted, setIceCompleted] = useState<boolean>(
-    !!participant.icebreaker_completed_at,
+  const [completed, setCompleted] = useState<Set<string>>(
+    () => new Set(completedExerciseIds),
+  )
+  const [startedInSession, setStartedInSession] = useState<Set<string>>(
+    () => new Set(),
   )
   const [surveyCompleted, setSurveyCompleted] = useState<boolean>(
     !!participant.survey_completed_at,
   )
+  const [surveyStartedInSession, setSurveyStartedInSession] = useState<boolean>(
+    false,
+  )
 
-  // "In progress" is purely client-side: did the participant open the activity
-  // in this session and not yet finish it.
-  const [iceStartedInSession, setIceStartedInSession] = useState<boolean>(false)
-  const [surveyStartedInSession, setSurveyStartedInSession] = useState<boolean>(false)
-
-  const hasIcebreaker =
-    !!icebreaker &&
-    ((icebreaker.format === 'matching' && items.length > 0) ||
-      (icebreaker.format === 'prompts' && prompts.length > 0))
   const hasSurvey = !!survey && questions.length > 0
 
-  function tapIcebreaker() {
-    if (iceCompleted) {
-      setStage('icebreaker-done')
+  function tapExercise(exerciseId: string) {
+    if (completed.has(exerciseId)) {
+      setStage({ kind: 'exercise-done', exerciseId })
     } else {
-      setIceStartedInSession(true)
-      setStage('icebreaker')
+      setStartedInSession((s) => new Set(s).add(exerciseId))
+      setStage({ kind: 'exercise', exerciseId })
     }
   }
 
   function tapSurvey() {
     if (surveyCompleted) {
-      setStage('survey-done')
+      setStage({ kind: 'survey-done' })
     } else {
       setSurveyStartedInSession(true)
-      setStage('survey')
+      setStage({ kind: 'survey' })
     }
   }
 
   function backToHub() {
-    setStage('hub')
+    setStage({ kind: 'hub' })
   }
 
-  function onIceFinished() {
-    setIceCompleted(true)
-    setIceStartedInSession(false)
-    setStage('hub')
+  function onExerciseFinished(exerciseId: string) {
+    setCompleted((s) => new Set(s).add(exerciseId))
+    setStartedInSession((s) => {
+      const next = new Set(s)
+      next.delete(exerciseId)
+      return next
+    })
+    setStage({ kind: 'hub' })
   }
 
   function onSurveyFinished() {
     setSurveyCompleted(true)
     setSurveyStartedInSession(false)
-    setStage('hub')
+    setStage({ kind: 'hub' })
   }
 
-  // Build the activity list — future activities can be appended here.
-  const activities: HubActivity[] = []
-  if (hasIcebreaker && icebreaker) {
-    activities.push({
-      id: 'icebreaker',
-      title: 'Warm-up',
-      description:
-        icebreaker.format === 'matching'
-          ? 'Match milestones to age groups'
-          : 'A few quick reflection prompts',
-      completed: iceCompleted,
-      inProgress: iceStartedInSession && !iceCompleted,
-      icon: 'sparkles',
-      onTap: tapIcebreaker,
-    })
-  }
+  const activities: HubActivity[] = exercises.map((ex) => ({
+    id: ex.id,
+    title: titleForExercise(ex),
+    description: ex.description?.trim() || EXERCISE_BLURB[ex.type],
+    completed: completed.has(ex.id),
+    inProgress: startedInSession.has(ex.id) && !completed.has(ex.id),
+    icon: EXERCISE_ICON[ex.type],
+    onTap: () => tapExercise(ex.id),
+  }))
   if (hasSurvey) {
     activities.push({
       id: 'survey',
       title: 'Feedback',
-      description: 'Share your thoughts on the ASQ-3',
+      description: survey?.description?.trim() || 'Share your thoughts',
       completed: surveyCompleted,
       inProgress: surveyStartedInSession && !surveyCompleted,
       icon: 'clipboard',
@@ -129,8 +148,12 @@ export function ParticipantFlow({
     })
   }
 
-  const headerLabel = stageLabel(stage)
-  const inActivity = stage !== 'hub'
+  const activeExercise =
+    stage.kind === 'exercise' || stage.kind === 'exercise-done'
+      ? exercises.find((e) => e.id === stage.exerciseId) ?? null
+      : null
+  const headerLabel = headerLabelFor(stage, activeExercise)
+  const inActivity = stage.kind !== 'hub'
 
   return (
     <main className="min-h-screen flex flex-col">
@@ -165,39 +188,19 @@ export function ParticipantFlow({
       </header>
 
       <div className="sr-only" aria-live="polite">
-        Stage: {stage}
+        Stage: {stage.kind}
       </div>
 
-      {/*
-        Direct conditional render without an outer AnimatePresence.
-        Past attempts to orchestrate cross-stage transitions via
-        AnimatePresence (multi-sibling conditionals, single keyed
-        motion.div with mode="wait") all failed to reliably mount the
-        new stage after the previous one exited — the outgoing exit
-        completed but the incoming child never appeared.
-
-        Each stage's inner component already runs its own entry
-        animation (ActivityHub fades + staggers its cards,
-        MatchingIcebreaker animates the completion screen,
-        AlreadyCompleted has its own motion.div), so dropping the
-        outer wrapper preserves visual polish while making the
-        transition deterministic. We use key={stage} on the plain div
-        so React fully re-mounts the subtree on stage change — the
-        inner animations replay cleanly.
-      */}
-      <div key={stage} className="flex-1">
-        {renderStageContent({
+      <div key={stageKey(stage)} className="flex-1">
+        {renderStage({
           stage,
           training,
           participant,
-          icebreaker,
-          categories,
-          items,
-          prompts,
+          exercises,
+          activities,
           survey,
           questions,
-          activities,
-          onIceFinished,
+          onExerciseFinished,
           onSurveyFinished,
           backToHub,
         })}
@@ -206,54 +209,64 @@ export function ParticipantFlow({
   )
 }
 
-function stageLabel(stage: Stage): string | null {
-  switch (stage) {
-    case 'icebreaker':
-      return 'Warm-up'
-    case 'survey':
-      return 'Feedback'
-    case 'icebreaker-done':
-      return 'Warm-up'
-    case 'survey-done':
-      return 'Feedback'
-    default:
-      return null
+function titleForExercise(ex: TrainingExerciseWithDef): string {
+  // Preserve the "Warm-up" hub label on legacy matching exercises so
+  // existing trainings look unchanged after migration.
+  if (
+    ex.type === 'matching' &&
+    typeof (ex.config as MatchingConfig).legacyIcebreakerId === 'string'
+  ) {
+    return 'Warm-up'
   }
+  return ex.title || EXERCISE_TYPE_LABELS[ex.type]
+}
+
+function stageKey(stage: Stage): string {
+  if (stage.kind === 'hub') return 'hub'
+  if (stage.kind === 'survey') return 'survey'
+  if (stage.kind === 'survey-done') return 'survey-done'
+  return `${stage.kind}-${stage.exerciseId}`
+}
+
+function headerLabelFor(
+  stage: Stage,
+  active: TrainingExerciseWithDef | null,
+): string | null {
+  if (stage.kind === 'hub') return null
+  if (stage.kind === 'survey' || stage.kind === 'survey-done') return 'Feedback'
+  if (!active) return null
+  if (active.type === 'matching') return 'Warm-up'
+  return EXERCISE_TYPE_LABELS[active.type]
 }
 
 type StageRenderArgs = {
   stage: Stage
   training: Training
   participant: Participant
-  icebreaker: Icebreaker | null
-  categories: IcebreakerCategory[]
-  items: IcebreakerItem[]
-  prompts: IcebreakerPrompt[]
+  exercises: TrainingExerciseWithDef[]
+  activities: HubActivity[]
   survey: Survey | null
   questions: SurveyQuestion[]
-  activities: HubActivity[]
-  onIceFinished: () => void
+  onExerciseFinished: (exerciseId: string) => void
   onSurveyFinished: () => void
   backToHub: () => void
 }
 
-function renderStageContent(args: StageRenderArgs) {
+function renderStage(args: StageRenderArgs) {
   const {
     stage,
     training,
     participant,
-    icebreaker,
-    categories,
-    items,
-    prompts,
+    exercises,
+    activities,
     survey,
     questions,
-    activities,
-    onIceFinished,
+    onExerciseFinished,
     onSurveyFinished,
     backToHub,
   } = args
-  if (stage === 'hub') {
+
+  if (stage.kind === 'hub') {
     return (
       <ActivityHub
         activities={activities}
@@ -261,30 +274,8 @@ function renderStageContent(args: StageRenderArgs) {
       />
     )
   }
-  if (stage === 'icebreaker' && icebreaker && icebreaker.format === 'matching') {
-    return (
-      <MatchingIcebreaker
-        training={training}
-        participant={participant}
-        icebreaker={icebreaker}
-        categories={categories}
-        items={items}
-        onComplete={onIceFinished}
-      />
-    )
-  }
-  if (stage === 'icebreaker' && icebreaker && icebreaker.format === 'prompts') {
-    return (
-      <PromptsIcebreaker
-        training={training}
-        participant={participant}
-        icebreaker={icebreaker}
-        prompts={prompts}
-        onComplete={onIceFinished}
-      />
-    )
-  }
-  if (stage === 'survey' && survey) {
+
+  if (stage.kind === 'survey' && survey) {
     return (
       <SurveyForm
         training={training}
@@ -295,12 +286,68 @@ function renderStageContent(args: StageRenderArgs) {
       />
     )
   }
-  if (stage === 'icebreaker-done') {
-    return <AlreadyCompleted onBack={backToHub} label="warm-up" />
-  }
-  if (stage === 'survey-done') {
+
+  if (stage.kind === 'survey-done') {
     return <AlreadyCompleted onBack={backToHub} label="feedback" />
   }
+
+  if (stage.kind === 'exercise-done') {
+    const ex = exercises.find((e) => e.id === stage.exerciseId)
+    return (
+      <AlreadyCompleted
+        onBack={backToHub}
+        label={ex && ex.type === 'matching' ? 'warm-up' : 'response'}
+      />
+    )
+  }
+
+  if (stage.kind === 'exercise') {
+    const ex = exercises.find((e) => e.id === stage.exerciseId)
+    if (!ex) return <AlreadyCompleted onBack={backToHub} label="exercise" />
+    const onDone = () => onExerciseFinished(ex.id)
+    if (isMatchingExercise(ex)) {
+      return (
+        <MatchingPlayer
+          training={training}
+          participant={participant}
+          exercise={ex as Exercise & { config: MatchingConfig }}
+          onComplete={onDone}
+        />
+      )
+    }
+    if (isQuizExercise(ex)) {
+      return (
+        <QuizPlayer
+          training={training}
+          participant={participant}
+          exercise={ex as Exercise & { config: QuizConfig }}
+          onComplete={onDone}
+        />
+      )
+    }
+    if (isReflectionExercise(ex)) {
+      return (
+        <ReflectionPlayer
+          training={training}
+          participant={participant}
+          exercise={ex as Exercise & { config: ReflectionConfig }}
+          onComplete={onDone}
+        />
+      )
+    }
+    return (
+      <div className="px-4 md:px-6 py-16 text-center">
+        <p className="text-ink/70">
+          This exercise type ({ex.type}) isn&rsquo;t playable yet.
+        </p>
+        <Button variant="secondary" onClick={backToHub} className="mt-6">
+          <ArrowLeft className="h-4 w-4" />
+          Back to activities
+        </Button>
+      </div>
+    )
+  }
+
   return null
 }
 
@@ -326,7 +373,7 @@ function AlreadyCompleted({
           You&rsquo;ve already completed this — <span className="italic-sage">thank you!</span>
         </h2>
         <p className="mt-3 text-ink/60 text-balance">
-          Your {label} responses are safe with us.
+          Your {label} response is safe with us.
         </p>
         <div className="mt-8">
           <Button variant="secondary" onClick={onBack}>

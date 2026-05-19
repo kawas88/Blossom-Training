@@ -2,11 +2,11 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ParticipantFlow } from './ParticipantFlow'
+import {
+  listTrainingExercises,
+  type TrainingExerciseWithDef,
+} from '@/lib/exercises'
 import type {
-  Icebreaker,
-  IcebreakerCategory,
-  IcebreakerItem,
-  IcebreakerPrompt,
   Survey,
   SurveyQuestion,
   Training,
@@ -50,47 +50,22 @@ export default async function ParticipantPage({ params }: { params: Params }) {
     redirect(`/join?code=${training.join_code}`)
   }
 
-  // Load icebreaker
-  let icebreaker: Icebreaker | null = null
-  let categories: IcebreakerCategory[] = []
-  let items: IcebreakerItem[] = []
-  let prompts: IcebreakerPrompt[] = []
+  // Load the ordered list of exercises attached to this training.
+  const exercises: TrainingExerciseWithDef[] = await listTrainingExercises(
+    training.id,
+  )
 
-  if (training.icebreaker_id) {
-    const { data: ice } = await supabase
-      .from('icebreakers')
-      .select('*')
-      .eq('id', training.icebreaker_id)
-      .maybeSingle<Icebreaker>()
-    icebreaker = ice ?? null
-    if (ice) {
-      if (ice.format === 'matching') {
-        const [{ data: cats }, { data: its }] = await Promise.all([
-          supabase
-            .from('icebreaker_categories')
-            .select('*')
-            .eq('icebreaker_id', ice.id)
-            .order('position'),
-          supabase
-            .from('icebreaker_items')
-            .select('*')
-            .eq('icebreaker_id', ice.id)
-            .order('position'),
-        ])
-        categories = (cats ?? []) as IcebreakerCategory[]
-        items = (its ?? []) as IcebreakerItem[]
-      } else {
-        const { data: pr } = await supabase
-          .from('icebreaker_prompts')
-          .select('*')
-          .eq('icebreaker_id', ice.id)
-          .order('position')
-        prompts = (pr ?? []) as IcebreakerPrompt[]
-      }
-    }
-  }
+  // Which exercises has this participant already completed?
+  const { data: completedRows } = await supabase
+    .from('exercise_responses')
+    .select('exercise_id')
+    .eq('training_id', training.id)
+    .eq('participant_id', participant.id)
+  const completedExerciseIds = new Set(
+    (completedRows ?? []).map((r) => r.exercise_id as string),
+  )
 
-  // Load survey
+  // Load survey (legacy attachment, unchanged for now)
   let survey: Survey | null = null
   let questions: SurveyQuestion[] = []
   if (training.survey_id) {
@@ -114,10 +89,8 @@ export default async function ParticipantPage({ params }: { params: Params }) {
     <ParticipantFlow
       training={training}
       participant={participant}
-      icebreaker={icebreaker}
-      categories={categories}
-      items={items}
-      prompts={prompts}
+      exercises={exercises}
+      completedExerciseIds={Array.from(completedExerciseIds)}
       survey={survey}
       questions={questions}
     />

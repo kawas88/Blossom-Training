@@ -36,6 +36,11 @@ import { IcebreakerTab } from './tabs/IcebreakerTab'
 import { SurveyTab } from './tabs/SurveyTab'
 import { NotesTab } from './tabs/NotesTab'
 import { ExportTab } from './tabs/ExportTab'
+import { ExercisesTab } from './tabs/ExercisesTab'
+import type {
+  Exercise,
+  TrainingExerciseWithDef,
+} from '@/lib/exercises'
 
 type Props = {
   training: Training
@@ -50,6 +55,9 @@ type Props = {
   promptResponses: IcebreakerPromptResponse[]
   surveyResponses: SurveyResponse[]
   notes: TrainerNote[]
+  trainingExercises: TrainingExerciseWithDef[]
+  workspaceExercises: Exercise[]
+  matchingExerciseId: string | null
 }
 
 export function TrainingDashboard(props: Props) {
@@ -135,9 +143,17 @@ export function TrainingDashboard(props: Props) {
       : process.env.NEXT_PUBLIC_APP_URL || ''
   const joinLink = `${appUrl}/?code=${training.join_code}`
 
+  const hasMatching = !!props.matchingExerciseId
   const tabs = [
     { value: 'overview', label: 'Overview' },
-    { value: 'icebreaker', label: 'Icebreaker' },
+    {
+      value: 'exercises',
+      label: 'Exercises',
+      count: props.trainingExercises.length,
+    },
+    ...(hasMatching
+      ? [{ value: 'icebreaker', label: 'Matching results' }]
+      : []),
     { value: 'survey', label: 'Survey' },
     { value: 'notes', label: 'Notes', count: props.notes.length },
     { value: 'export', label: 'Export & report' },
@@ -223,7 +239,14 @@ export function TrainingDashboard(props: Props) {
         transition={{ duration: 0.25 }}
       >
         {tab === 'overview' && <OverviewTab {...props} />}
-        {tab === 'icebreaker' && <IcebreakerTab {...props} />}
+        {tab === 'exercises' && (
+          <ExercisesTab
+            training={props.training}
+            trainingExercises={props.trainingExercises}
+            workspaceExercises={props.workspaceExercises}
+          />
+        )}
+        {tab === 'icebreaker' && hasMatching && <IcebreakerTab {...props} />}
         {tab === 'survey' && <SurveyTab {...props} />}
         {tab === 'notes' && <NotesTab {...props} />}
         {tab === 'export' && <ExportTab {...props} />}

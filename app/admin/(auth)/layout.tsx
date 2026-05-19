@@ -6,6 +6,7 @@ import {
   ClipboardList,
   Sparkles,
   Settings,
+  Layers,
 } from 'lucide-react'
 import { getAdminSession } from '@/lib/auth'
 import { getActiveWorkspace, getUserWorkspaces } from '@/lib/workspace'
@@ -19,10 +20,13 @@ export const dynamic = 'force-dynamic'
 const NAV = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/trainings', label: 'Trainings', icon: Users },
-  { href: '/admin/icebreakers', label: 'Icebreakers', icon: Sparkles },
+  { href: '/admin/exercises', label: 'Exercises', icon: Layers },
   { href: '/admin/surveys', label: 'Surveys', icon: ClipboardList },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ]
+// Note: "Icebreakers" (/admin/icebreakers) is intentionally omitted from
+// the sidebar — its functionality is folded into Exercises in Phase 3A.
+// The legacy route still resolves for any bookmarked URLs.
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getAdminSession()
