@@ -12,12 +12,14 @@ import {
   ArrowLeft,
   Lock,
   Play,
+  Presentation,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { Tabs } from '@/components/ui/Tabs'
 import { Pill } from '@/components/ui/Pill'
 import { Button } from '@/components/ui/Button'
+import { QrCode } from '@/components/QrCode'
 import type {
   Training,
   Participant,
@@ -38,6 +40,7 @@ import { NotesTab } from './tabs/NotesTab'
 import { ExportTab } from './tabs/ExportTab'
 import { ExercisesTab } from './tabs/ExercisesTab'
 import { ResultsTab } from './tabs/ResultsTab'
+import { QnATab } from './tabs/QnATab'
 import type {
   Exercise,
   ExerciseResponse,
@@ -72,39 +75,37 @@ export function TrainingDashboard(props: Props) {
   const [statusBusy, setStatusBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Realtime subscription
+  // Realtime subscription — one channel per table, no `filter` option.
+  // Same lesson learned in LiveCockpit: supabase-js v2 multi-listener
+  // single-channel setups with `filter` silently drop events under load.
+  // We trade slightly more channels for reliable delivery, and gate by
+  // training_id client-side instead.
   useEffect(() => {
     const supabase = createClient()
-    const channel = supabase
-      .channel(`training-${training.id}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'participants', filter: `training_id=eq.${training.id}` },
-        () => router.refresh(),
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'icebreaker_matching_responses', filter: `training_id=eq.${training.id}` },
-        () => router.refresh(),
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'icebreaker_prompt_responses', filter: `training_id=eq.${training.id}` },
-        () => router.refresh(),
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'survey_responses', filter: `training_id=eq.${training.id}` },
-        () => router.refresh(),
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'trainer_notes', filter: `training_id=eq.${training.id}` },
-        () => router.refresh(),
-      )
-      .subscribe()
+    const tables = [
+      'participants',
+      'exercise_responses',
+      'icebreaker_matching_responses',
+      'icebreaker_prompt_responses',
+      'survey_responses',
+      'trainer_notes',
+    ] as const
+    const channels = tables.map((table) =>
+      supabase
+        .channel(`dashboard-${table}-${training.id}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table },
+          (payload) => {
+            const row = (payload.new ?? payload.old) as { training_id?: string } | null
+            if (row?.training_id !== training.id) return
+            router.refresh()
+          },
+        )
+        .subscribe(),
+    )
     return () => {
-      supabase.removeChannel(channel)
+      for (const ch of channels) supabase.removeChannel(ch)
     }
   }, [training.id, router])
 
@@ -115,11 +116,15 @@ export function TrainingDashboard(props: Props) {
     })
   }
 
+  const [confirmClose, setConfirmClose] = useState(false)
+
   async function changeStatus(status: 'live' | 'closed' | 'draft') {
     if (statusBusy) return
-    if (status === 'closed') {
-      const ok = confirm('Close this training? Participants will no longer be able to join.')
-      if (!ok) return
+    // Closing is destructive (no one can join after). For draft/live no
+    // confirm; for closed, callers wire confirmClose state and call again.
+    if (status === 'closed' && !confirmClose) {
+      setConfirmClose(true)
+      return
     }
     setStatusBusy(true)
     setError(null)
@@ -131,11 +136,12 @@ export function TrainingDashboard(props: Props) {
       })
       if (!res.ok) {
         const d = await res.json().catch(() => ({}))
-        throw new Error(d.error || 'Could not update status')
+        throw new Error(d.error || 'Could not update training status. Please try again.')
       }
+      setConfirmClose(false)
       router.refresh()
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Something went wrong')
+      setError(e instanceof Error ? e.message : 'Something went wrong. Please try again.')
     } finally {
       setStatusBusy(false)
     }
@@ -161,6 +167,7 @@ export function TrainingDashboard(props: Props) {
       label: 'Results',
       count: exerciseResponsesCount,
     },
+    { value: 'qa', label: 'Q&A' },
     { value: 'survey', label: 'Survey' },
     { value: 'notes', label: 'Notes', count: props.notes.length },
     { value: 'export', label: 'Export & report' },
@@ -239,8 +246,32 @@ export function TrainingDashboard(props: Props) {
             />
           </div>
         </div>
+        {confirmClose && training.status === 'live' && (
+          <div className="mt-3 rounded-2xl bg-sunglow/20 border border-sunglow/50 px-4 py-3 text-sm text-deep flex items-center justify-between gap-3 flex-wrap">
+            <p>
+              <strong>Close this training?</strong> Participants will no longer
+              be able to join. Existing responses stay intact.
+            </p>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => changeStatus('closed')}
+                disabled={statusBusy}
+                className="rounded-full bg-pink text-white px-4 py-1.5 text-xs font-semibold hover:bg-pink/90 disabled:opacity-60"
+              >
+                {statusBusy ? 'Closing…' : 'Yes, close training'}
+              </button>
+              <button
+                onClick={() => setConfirmClose(false)}
+                disabled={statusBusy}
+                className="rounded-full border border-deep/20 px-4 py-1.5 text-xs font-semibold text-deep hover:bg-blush-deep"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
         {error && (
-          <div className="mt-3 rounded-xl bg-error/10 border border-error/20 px-4 py-2.5 text-sm text-error">
+          <div className="mt-3 rounded-2xl bg-pink/10 border border-pink/25 px-4 py-2.5 text-sm text-pink">
             {error}
           </div>
         )}
@@ -270,6 +301,7 @@ export function TrainingDashboard(props: Props) {
             matchingTabProps={hasMatching ? props : null}
           />
         )}
+        {tab === 'qa' && <QnATab trainingId={training.id} />}
         {tab === 'survey' && <SurveyTab {...props} />}
         {tab === 'notes' && <NotesTab {...props} />}
         {tab === 'export' && <ExportTab {...props} />}

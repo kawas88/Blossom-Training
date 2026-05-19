@@ -18,6 +18,21 @@ function stripFences(s: string): string {
   return t.trim()
 }
 
+// Claude very occasionally returns text that isn't valid JSON despite the
+// system prompt — usually a polite refusal or an unfinished response when
+// max_tokens is too low. We don't want that to crash the route handler.
+function safeJsonParse<T>(s: string, fallback: T): T {
+  try {
+    return JSON.parse(s) as T
+  } catch (e) {
+    console.warn('ai: model returned non-JSON, using fallback', {
+      preview: s.slice(0, 200),
+      error: e instanceof Error ? e.message : String(e),
+    })
+    return fallback
+  }
+}
+
 const SENTIMENT_SYSTEM = `You are analyzing open-ended feedback that participants left after a training session. Your goal is to surface actionable themes for the trainer. Be honest, balanced, and specific. Use plain, warm language — no jargon. Always reply with valid JSON only — no markdown, no commentary.`
 
 export async function analyzeSentiment(
@@ -37,11 +52,11 @@ export async function analyzeSentiment(
   const text = message.content
     .map((b) => (b.type === 'text' ? b.text : ''))
     .join('')
-  const parsed = JSON.parse(stripFences(text)) as SentimentResult
+  const parsed = safeJsonParse<Partial<SentimentResult>>(stripFences(text), {})
   // Light validation/normalization
   return {
-    sentiment: ['positive', 'mixed', 'negative'].includes(parsed.sentiment)
-      ? parsed.sentiment
+    sentiment: ['positive', 'mixed', 'negative'].includes(parsed.sentiment as string)
+      ? (parsed.sentiment as SentimentResult['sentiment'])
       : 'mixed',
     summary: parsed.summary || '',
     themes: Array.isArray(parsed.themes) ? parsed.themes.slice(0, 6) : [],
@@ -102,7 +117,7 @@ export async function summarizeTraining(input: {
   const text = message.content
     .map((b) => (b.type === 'text' ? b.text : ''))
     .join('')
-  const parsed = JSON.parse(stripFences(text)) as TrainingSummaryResult
+  const parsed = safeJsonParse<Partial<TrainingSummaryResult>>(stripFences(text), {})
   return {
     summary: parsed.summary || '',
     takeaways: Array.isArray(parsed.takeaways) ? parsed.takeaways.slice(0, 6) : [],

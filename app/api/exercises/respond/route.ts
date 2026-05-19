@@ -44,7 +44,11 @@ export async function POST(req: Request) {
     const supabase = createAdminClient()
 
     const [{ data: training }, { data: participant }, { data: linkRow }] = await Promise.all([
-      supabase.from('trainings').select('id, status').eq('id', trainingId).maybeSingle(),
+      supabase
+        .from('trainings')
+        .select('id, status, workspace_id')
+        .eq('id', trainingId)
+        .maybeSingle(),
       supabase
         .from('participants')
         .select('id, training_id')
@@ -71,6 +75,13 @@ export async function POST(req: Request) {
     const exercise = await getExercise(exerciseId)
     if (!exercise) {
       return NextResponse.json({ error: 'Exercise not found' }, { status: 404 })
+    }
+    // Defence-in-depth: even with the training_exercises link verified above,
+    // confirm the exercise belongs to the same workspace as the training. A
+    // mis-linked admin row could otherwise let a participant submit against
+    // an exercise definition from a different workspace.
+    if (exercise.workspace_id !== training.workspace_id) {
+      return NextResponse.json({ error: 'Exercise not in this workspace' }, { status: 403 })
     }
 
     // Type-specific processing
@@ -235,6 +246,17 @@ export async function POST(req: Request) {
       score,
     })
     if (insertErr) {
+      // Unique violation on (exercise_id, participant_id) means a concurrent
+      // submission landed between our select-check above and this insert.
+      // Surface as 409 so the player UI can show "already submitted" rather
+      // than a generic 500.
+      const code = (insertErr as { code?: string }).code
+      if (code === '23505') {
+        return NextResponse.json(
+          { error: 'already_responded', message: 'You have already completed this exercise.' },
+          { status: 409 },
+        )
+      }
       console.error('exercise_responses insert', insertErr)
       return NextResponse.json({ error: 'Could not save response' }, { status: 500 })
     }

@@ -57,8 +57,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Could not create participant' }, { status: 500 })
     }
 
+    // httpOnly: the token is only read server-side (see app/join/page.tsx
+    // and app/participant/[slug]/page.tsx via cookies().get). Keeping it
+    // out of document.cookie protects against reflection-text XSS being
+    // able to lift the participant session.
     cookies().set(`pt_${trainingId}`, token, {
-      httpOnly: false,
+      httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
