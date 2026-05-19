@@ -8,12 +8,14 @@ import {
   type MatchingConfig,
   type QuizConfig,
   type ReflectionConfig,
+  type WordCloudConfig,
 } from '@/lib/exercises'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea } from '@/components/ui/Input'
 import { MatchingConfigEditor } from './editors/MatchingConfigEditor'
 import { QuizConfigEditor } from './editors/QuizConfigEditor'
 import { ReflectionConfigEditor } from './editors/ReflectionConfigEditor'
+import { WordCloudConfigEditor } from './editors/WordCloudConfigEditor'
 
 type Props = {
   mode: 'create' | 'edit'
@@ -103,6 +105,12 @@ export function ExerciseEditor({ mode, type, exerciseId, initial }: Props) {
       {type === 'reflection' && (
         <ReflectionConfigEditor
           config={config as ReflectionConfig}
+          onChange={(next) => setConfig(next)}
+        />
+      )}
+      {type === 'word_cloud' && (
+        <WordCloudConfigEditor
+          config={config as WordCloudConfig}
           onChange={(next) => setConfig(next)}
         />
       )}

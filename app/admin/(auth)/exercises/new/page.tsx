@@ -16,7 +16,7 @@ const ALL_TYPES: { type: ExerciseType; comingSoon: boolean }[] = [
   { type: 'matching', comingSoon: false },
   { type: 'quiz', comingSoon: false },
   { type: 'reflection', comingSoon: false },
-  { type: 'word_cloud', comingSoon: true },
+  { type: 'word_cloud', comingSoon: false },
   { type: 'ranking', comingSoon: true },
   { type: 'annotation', comingSoon: true },
   { type: 'scenario', comingSoon: true },

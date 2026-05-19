@@ -5,9 +5,12 @@ import {
   isMatchingExercise,
   isQuizExercise,
   isReflectionExercise,
+  isWordCloudExercise,
   type MatchingResponseShape,
   type QuizResponseShape,
   type ReflectionResponseShape,
+  type WordCloudConfig,
+  type WordCloudResponseShape,
 } from '@/lib/exercises'
 import { analyzeSentiment } from '@/lib/ai'
 
@@ -111,6 +114,14 @@ export async function POST(req: Request) {
         }
       }
       responsePayload = { text, aiAnalysis }
+    } else if (isWordCloudExercise(exercise)) {
+      const cast = rawResponse as WordCloudResponseShape
+      const rawWords = Array.isArray(cast?.words) ? cast.words : []
+      const cleaned = normalizeWords(rawWords, exercise.config)
+      if (cleaned.length === 0) {
+        return NextResponse.json({ error: 'No valid words to record.' }, { status: 400 })
+      }
+      responsePayload = { words: cleaned }
     } else {
       return NextResponse.json(
         { error: `Exercise type "${exercise.type}" is not playable yet` },
@@ -150,4 +161,31 @@ export async function POST(req: Request) {
     console.error('exercises/respond error', e)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
+}
+
+// ---------------------------------------------------------------------
+// Word Cloud — trim + length-cap + (optional) lowercase + stop-word filter.
+// Dedupes within a single submission so "joy joy joy" doesn't game the cloud.
+// ---------------------------------------------------------------------
+function normalizeWords(input: string[], config: WordCloudConfig): string[] {
+  const maxLength = Math.max(1, Math.min(200, Number(config.maxLength) || 30))
+  const stopSet = new Set(
+    (config.stopWords ?? [])
+      .map((w) => (w || '').toString().trim())
+      .filter(Boolean)
+      .map((w) => (config.caseSensitive ? w : w.toLowerCase())),
+  )
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const raw of input) {
+    const trimmed = (raw ?? '').toString().trim().slice(0, maxLength)
+    if (!trimmed) continue
+    const cased = config.caseSensitive ? trimmed : trimmed.toLowerCase()
+    if (stopSet.has(cased)) continue
+    if (seen.has(cased)) continue
+    seen.add(cased)
+    out.push(cased)
+    if (!config.allowMultiple) break
+  }
+  return out
 }

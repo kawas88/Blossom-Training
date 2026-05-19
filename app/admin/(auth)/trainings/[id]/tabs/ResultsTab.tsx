@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils'
 import { IcebreakerTab } from './IcebreakerTab'
 import { QuizResults } from './results/QuizResults'
 import { ReflectionResults } from './results/ReflectionResults'
+import { WordCloudResults } from './results/WordCloudResults'
 
 const TYPE_TONE: Record<ExerciseType, string> = {
   matching: 'bg-domain-comm/15 text-domain-comm',
@@ -182,6 +183,16 @@ function PerExerciseResults({
   if (exercise.type === 'reflection') {
     return (
       <ReflectionResults
+        exercise={exercise}
+        responses={responses}
+        participants={participants}
+      />
+    )
+  }
+
+  if (exercise.type === 'word_cloud') {
+    return (
+      <WordCloudResults
         exercise={exercise}
         responses={responses}
         participants={participants}

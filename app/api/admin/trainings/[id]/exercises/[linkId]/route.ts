@@ -36,6 +36,9 @@ export async function PATCH(
   const body = await req.json()
   const patch: Record<string, unknown> = {}
   if (typeof body.required === 'boolean') patch.required = body.required
+  if (body.pacing === 'self' || body.pacing === 'trainer') {
+    patch.pacing = body.pacing
+  }
   if (Object.keys(patch).length === 0) return NextResponse.json({ ok: true })
 
   const { data, error } = await supabase

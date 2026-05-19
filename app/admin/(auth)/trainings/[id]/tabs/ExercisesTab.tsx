@@ -161,7 +161,7 @@ export function ExercisesTab({
     }
   }
 
-  async function toggleRequired(linkId: string, required: boolean) {
+  async function patchLink(linkId: string, patch: Record<string, unknown>) {
     if (busy) return
     setBusy(true)
     setError(null)
@@ -171,12 +171,12 @@ export function ExercisesTab({
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ required }),
+          body: JSON.stringify(patch),
         },
       )
       if (!res.ok) throw new Error('Could not update')
       setItems((current) =>
-        current.map((i) => (i.link_id === linkId ? { ...i, required } : i)),
+        current.map((i) => (i.link_id === linkId ? { ...i, ...patch } : i)),
       )
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Something went wrong')
@@ -230,7 +230,8 @@ export function ExercisesTab({
                 <SortableRow
                   key={item.link_id}
                   item={item}
-                  onRequiredChange={(v) => toggleRequired(item.link_id, v)}
+                  onRequiredChange={(v) => patchLink(item.link_id, { required: v })}
+                  onPacingChange={(v) => patchLink(item.link_id, { pacing: v })}
                   onRemove={() => removeExercise(item.link_id)}
                 />
               ))}
@@ -253,10 +254,12 @@ export function ExercisesTab({
 function SortableRow({
   item,
   onRequiredChange,
+  onPacingChange,
   onRemove,
 }: {
   item: TrainingExerciseWithDef
   onRequiredChange: (v: boolean) => void
+  onPacingChange: (v: 'self' | 'trainer') => void
   onRemove: () => void
 }) {
   const {
@@ -305,7 +308,32 @@ function SortableRow({
           <p className="text-xs text-ink/50 truncate">{item.description}</p>
         )}
       </div>
-      <label className="hidden sm:flex items-center gap-2 text-xs text-ink/70 cursor-pointer">
+      <div className="hidden sm:inline-flex rounded-full border border-ink/15 p-0.5 text-[10px] font-mono uppercase tracking-wider">
+        {(['self', 'trainer'] as const).map((mode) => {
+          const active = item.pacing === mode
+          return (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => onPacingChange(mode)}
+              className={cn(
+                'rounded-full px-2.5 py-1 transition-colors',
+                active
+                  ? 'bg-ink text-cream'
+                  : 'text-ink/60 hover:text-ink',
+              )}
+              title={
+                mode === 'self'
+                  ? 'Participants run this at their own pace'
+                  : 'Trainer drives this exercise live for the whole room'
+              }
+            >
+              {mode === 'self' ? 'Self' : 'Trainer'}
+            </button>
+          )
+        })}
+      </div>
+      <label className="hidden md:flex items-center gap-2 text-xs text-ink/70 cursor-pointer">
         <input
           type="checkbox"
           checked={item.required}

@@ -6,6 +6,11 @@ import {
   listTrainingExercises,
   type TrainingExerciseWithDef,
 } from '@/lib/exercises'
+import {
+  ensureTrainingSession,
+  hasAnyTrainerPaced,
+  type TrainingSession,
+} from '@/lib/sessions'
 import type {
   Survey,
   SurveyQuestion,
@@ -55,6 +60,14 @@ export default async function ParticipantPage({ params }: { params: Params }) {
     training.id,
   )
 
+  // If the training has trainer-paced exercises, seed a session row so
+  // participants can subscribe to it via Realtime even before the trainer
+  // hits Start.
+  let initialSession: TrainingSession | null = null
+  if (hasAnyTrainerPaced(exercises)) {
+    initialSession = await ensureTrainingSession(training.id)
+  }
+
   // Which exercises has this participant already completed?
   const { data: completedRows } = await supabase
     .from('exercise_responses')
@@ -93,6 +106,7 @@ export default async function ParticipantPage({ params }: { params: Params }) {
       completedExerciseIds={Array.from(completedExerciseIds)}
       survey={survey}
       questions={questions}
+      initialSession={initialSession}
     />
   )
 }

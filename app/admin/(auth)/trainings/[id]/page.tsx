@@ -168,6 +168,7 @@ export default async function TrainingDetailPage({ params }: { params: Params })
       workspaceExercises={workspaceExercises}
       matchingExerciseId={matchingExercise?.id ?? null}
       exerciseResponses={exerciseResponses}
+      hasTrainerPaced={trainingExercises.some((e) => e.pacing === 'trainer')}
     />
   )
 }

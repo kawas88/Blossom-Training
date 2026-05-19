@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Check } from 'lucide-react'
+import { ArrowLeft, Check, Heart } from 'lucide-react'
 import type {
   Survey,
   SurveyQuestion,
@@ -14,26 +14,37 @@ import {
   isMatchingExercise,
   isQuizExercise,
   isReflectionExercise,
+  isWordCloudExercise,
   type Exercise,
   type ExerciseType,
   type MatchingConfig,
   type QuizConfig,
   type ReflectionConfig,
   type TrainingExerciseWithDef,
+  type WordCloudConfig,
 } from '@/lib/exercises'
+import type { TrainingSession } from '@/lib/sessions'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { MatchingPlayer } from './MatchingPlayer'
 import { QuizPlayer } from './QuizPlayer'
 import { ReflectionPlayer } from './ReflectionPlayer'
+import { WordCloudPlayer } from './WordCloudPlayer'
 import { SurveyForm } from './SurveyForm'
 import { ActivityHub, type HubActivity } from './ActivityHub'
 
-type Stage =
+type LocalStage =
   | { kind: 'hub' }
   | { kind: 'exercise'; exerciseId: string }
   | { kind: 'exercise-done'; exerciseId: string }
   | { kind: 'survey' }
   | { kind: 'survey-done' }
+
+type EffectiveStage =
+  | LocalStage
+  | { kind: 'waiting' }
+  | { kind: 'driven'; exerciseId: string }
+  | { kind: 'wrapped' }
 
 type Props = {
   training: Training
@@ -42,6 +53,7 @@ type Props = {
   completedExerciseIds: string[]
   survey: Survey | null
   questions: SurveyQuestion[]
+  initialSession: TrainingSession | null
 }
 
 const EXERCISE_ICON: Record<ExerciseType, 'sparkles' | 'clipboard'> = {
@@ -71,8 +83,9 @@ export function ParticipantFlow({
   completedExerciseIds,
   survey,
   questions,
+  initialSession,
 }: Props) {
-  const [stage, setStage] = useState<Stage>({ kind: 'hub' })
+  const [localStage, setLocalStage] = useState<LocalStage>({ kind: 'hub' })
 
   const [completed, setCompleted] = useState<Set<string>>(
     () => new Set(completedExerciseIds),
@@ -87,28 +100,66 @@ export function ParticipantFlow({
     false,
   )
 
+  const [session, setSession] = useState<TrainingSession | null>(initialSession)
+
+  const trainerPaced = useMemo(
+    () => exercises.filter((e) => e.pacing === 'trainer'),
+    [exercises],
+  )
+  const selfPaced = useMemo(
+    () => exercises.filter((e) => e.pacing !== 'trainer'),
+    [exercises],
+  )
+  const allTrainerPaced =
+    trainerPaced.length > 0 && selfPaced.length === 0 && !survey
+
   const hasSurvey = !!survey && questions.length > 0
+
+  // Realtime subscription to the session row — drives the trainer-paced flow.
+  useEffect(() => {
+    if (!initialSession) return
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`participant-session:${training.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'training_sessions',
+          filter: `training_id=eq.${training.id}`,
+        },
+        (payload) => {
+          const next = payload.new as TrainingSession | null
+          if (next && next.id) setSession(next)
+        },
+      )
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [training.id, initialSession])
 
   function tapExercise(exerciseId: string) {
     if (completed.has(exerciseId)) {
-      setStage({ kind: 'exercise-done', exerciseId })
+      setLocalStage({ kind: 'exercise-done', exerciseId })
     } else {
       setStartedInSession((s) => new Set(s).add(exerciseId))
-      setStage({ kind: 'exercise', exerciseId })
+      setLocalStage({ kind: 'exercise', exerciseId })
     }
   }
 
   function tapSurvey() {
     if (surveyCompleted) {
-      setStage({ kind: 'survey-done' })
+      setLocalStage({ kind: 'survey-done' })
     } else {
       setSurveyStartedInSession(true)
-      setStage({ kind: 'survey' })
+      setLocalStage({ kind: 'survey' })
     }
   }
 
   function backToHub() {
-    setStage({ kind: 'hub' })
+    setLocalStage({ kind: 'hub' })
   }
 
   function onExerciseFinished(exerciseId: string) {
@@ -118,16 +169,40 @@ export function ParticipantFlow({
       next.delete(exerciseId)
       return next
     })
-    setStage({ kind: 'hub' })
+    setLocalStage({ kind: 'hub' })
   }
 
   function onSurveyFinished() {
     setSurveyCompleted(true)
     setSurveyStartedInSession(false)
-    setStage({ kind: 'hub' })
+    setLocalStage({ kind: 'hub' })
   }
 
-  const activities: HubActivity[] = exercises.map((ex) => ({
+  // The trainer's view trumps local state when a trainer-paced session is
+  // live or wrapped. Otherwise we fall back to the local hub/exercise flow.
+  const effectiveStage: EffectiveStage = useMemo(() => {
+    if (session?.status === 'wrapped') {
+      return { kind: 'wrapped' }
+    }
+    if (session?.status === 'live' && session.current_exercise_id) {
+      const driven = trainerPaced.find((e) => e.id === session.current_exercise_id)
+      if (driven) return { kind: 'driven', exerciseId: driven.id }
+    }
+    if (allTrainerPaced && session?.status === 'idle') {
+      return { kind: 'waiting' }
+    }
+    return localStage
+  }, [session, trainerPaced, allTrainerPaced, localStage])
+
+  // Mark trainer-paced exercises completed when the participant's response
+  // for the current driven exercise commits successfully. Local "completed"
+  // tracking gives the hub the right pill state for mixed trainings.
+  function onDrivenFinished(exerciseId: string) {
+    setCompleted((s) => new Set(s).add(exerciseId))
+  }
+
+  // Build the hub activity list — only self-paced exercises go on the hub.
+  const activities: HubActivity[] = selfPaced.map((ex) => ({
     id: ex.id,
     title: titleForExercise(ex),
     description: ex.description?.trim() || EXERCISE_BLURB[ex.type],
@@ -148,19 +223,20 @@ export function ParticipantFlow({
     })
   }
 
-  const activeExercise =
-    stage.kind === 'exercise' || stage.kind === 'exercise-done'
-      ? exercises.find((e) => e.id === stage.exerciseId) ?? null
-      : null
-  const headerLabel = headerLabelFor(stage, activeExercise)
-  const inActivity = stage.kind !== 'hub'
+  const headerLabel = headerLabelFor(effectiveStage, exercises)
+  const inActivity = effectiveStage.kind !== 'hub' && effectiveStage.kind !== 'waiting'
+  const canBack =
+    effectiveStage.kind === 'exercise' ||
+    effectiveStage.kind === 'exercise-done' ||
+    effectiveStage.kind === 'survey' ||
+    effectiveStage.kind === 'survey-done'
 
   return (
     <main className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-30 bg-cream/90 backdrop-blur-md border-b border-ink/10">
         <div className="mx-auto max-w-3xl px-4 md:px-6 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            {inActivity ? (
+            {canBack ? (
               <button
                 onClick={backToHub}
                 className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium text-ink/70 hover:bg-sand/40 hover:text-ink transition-colors -ml-2"
@@ -188,12 +264,12 @@ export function ParticipantFlow({
       </header>
 
       <div className="sr-only" aria-live="polite">
-        Stage: {stage.kind}
+        Stage: {effectiveStage.kind}
       </div>
 
-      <div key={stageKey(stage)} className="flex-1">
+      <div key={stageKey(effectiveStage)} className="flex-1">
         {renderStage({
-          stage,
+          stage: effectiveStage,
           training,
           participant,
           exercises,
@@ -201,6 +277,7 @@ export function ParticipantFlow({
           survey,
           questions,
           onExerciseFinished,
+          onDrivenFinished,
           onSurveyFinished,
           backToHub,
         })}
@@ -210,8 +287,6 @@ export function ParticipantFlow({
 }
 
 function titleForExercise(ex: TrainingExerciseWithDef): string {
-  // Preserve the "Warm-up" hub label on legacy matching exercises so
-  // existing trainings look unchanged after migration.
   if (
     ex.type === 'matching' &&
     typeof (ex.config as MatchingConfig).legacyIcebreakerId === 'string'
@@ -221,26 +296,44 @@ function titleForExercise(ex: TrainingExerciseWithDef): string {
   return ex.title || EXERCISE_TYPE_LABELS[ex.type]
 }
 
-function stageKey(stage: Stage): string {
-  if (stage.kind === 'hub') return 'hub'
-  if (stage.kind === 'survey') return 'survey'
-  if (stage.kind === 'survey-done') return 'survey-done'
-  return `${stage.kind}-${stage.exerciseId}`
+function stageKey(stage: EffectiveStage): string {
+  switch (stage.kind) {
+    case 'hub':
+      return 'hub'
+    case 'waiting':
+      return 'waiting'
+    case 'wrapped':
+      return 'wrapped'
+    case 'survey':
+      return 'survey'
+    case 'survey-done':
+      return 'survey-done'
+    case 'driven':
+      return `driven-${stage.exerciseId}`
+    case 'exercise':
+    case 'exercise-done':
+      return `${stage.kind}-${stage.exerciseId}`
+  }
 }
 
 function headerLabelFor(
-  stage: Stage,
-  active: TrainingExerciseWithDef | null,
+  stage: EffectiveStage,
+  exercises: TrainingExerciseWithDef[],
 ): string | null {
-  if (stage.kind === 'hub') return null
+  if (stage.kind === 'hub' || stage.kind === 'waiting' || stage.kind === 'wrapped')
+    return null
   if (stage.kind === 'survey' || stage.kind === 'survey-done') return 'Feedback'
-  if (!active) return null
-  if (active.type === 'matching') return 'Warm-up'
-  return EXERCISE_TYPE_LABELS[active.type]
+  const ex = exercises.find(
+    (e) =>
+      'exerciseId' in stage && e.id === (stage as { exerciseId: string }).exerciseId,
+  )
+  if (!ex) return null
+  if (ex.type === 'matching') return 'Warm-up'
+  return EXERCISE_TYPE_LABELS[ex.type]
 }
 
 type StageRenderArgs = {
-  stage: Stage
+  stage: EffectiveStage
   training: Training
   participant: Participant
   exercises: TrainingExerciseWithDef[]
@@ -248,6 +341,7 @@ type StageRenderArgs = {
   survey: Survey | null
   questions: SurveyQuestion[]
   onExerciseFinished: (exerciseId: string) => void
+  onDrivenFinished: (exerciseId: string) => void
   onSurveyFinished: () => void
   backToHub: () => void
 }
@@ -262,6 +356,7 @@ function renderStage(args: StageRenderArgs) {
     survey,
     questions,
     onExerciseFinished,
+    onDrivenFinished,
     onSurveyFinished,
     backToHub,
   } = args
@@ -273,6 +368,14 @@ function renderStage(args: StageRenderArgs) {
         participantName={participant.display_name}
       />
     )
+  }
+
+  if (stage.kind === 'waiting') {
+    return <WaitingForTrainer />
+  }
+
+  if (stage.kind === 'wrapped') {
+    return <Wrapped />
   }
 
   if (stage.kind === 'survey' && survey) {
@@ -301,10 +404,18 @@ function renderStage(args: StageRenderArgs) {
     )
   }
 
-  if (stage.kind === 'exercise') {
+  if (stage.kind === 'exercise' || stage.kind === 'driven') {
+    const driven = stage.kind === 'driven'
     const ex = exercises.find((e) => e.id === stage.exerciseId)
-    if (!ex) return <AlreadyCompleted onBack={backToHub} label="exercise" />
-    const onDone = () => onExerciseFinished(ex.id)
+    if (!ex) {
+      return driven ? (
+        <WaitingForTrainer />
+      ) : (
+        <AlreadyCompleted onBack={backToHub} label="exercise" />
+      )
+    }
+    const onDone = () =>
+      driven ? onDrivenFinished(ex.id) : onExerciseFinished(ex.id)
     if (isMatchingExercise(ex)) {
       return (
         <MatchingPlayer
@@ -335,6 +446,17 @@ function renderStage(args: StageRenderArgs) {
         />
       )
     }
+    if (isWordCloudExercise(ex)) {
+      return (
+        <WordCloudPlayer
+          training={training}
+          participant={participant}
+          exercise={ex as Exercise & { config: WordCloudConfig }}
+          onComplete={onDone}
+          hold={driven}
+        />
+      )
+    }
     return (
       <div className="px-4 md:px-6 py-16 text-center">
         <p className="text-ink/70">
@@ -349,6 +471,69 @@ function renderStage(args: StageRenderArgs) {
   }
 
   return null
+}
+
+function WaitingForTrainer() {
+  return (
+    <div className="px-4 md:px-6 py-20 md:py-28 flex items-center justify-center">
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        className="text-center max-w-md"
+      >
+        <div className="mx-auto mb-6 flex gap-1.5 justify-center">
+          {[0, 1, 2].map((i) => (
+            <motion.span
+              key={i}
+              className="h-2.5 w-2.5 rounded-full bg-sage"
+              animate={{ opacity: [0.3, 1, 0.3], y: [0, -4, 0] }}
+              transition={{
+                duration: 1.2,
+                repeat: Infinity,
+                delay: i * 0.18,
+                ease: 'easeInOut',
+              }}
+            />
+          ))}
+        </div>
+        <h2 className="font-serif text-3xl md:text-4xl tracking-tightish text-ink leading-tight text-balance">
+          Waiting for the trainer to <span className="italic-sage">begin.</span>
+        </h2>
+        <p className="mt-3 text-ink/60 text-balance">
+          When they start the session, the first activity will appear here.
+        </p>
+      </motion.div>
+    </div>
+  )
+}
+
+function Wrapped() {
+  return (
+    <div className="px-4 md:px-6 py-16 md:py-24 flex items-center justify-center min-h-[60vh]">
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="text-center max-w-md"
+      >
+        <motion.div
+          initial={{ scale: 0.6, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.15, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-sage/15"
+        >
+          <Heart className="h-10 w-10 fill-sage text-sage" strokeWidth={1.5} />
+        </motion.div>
+        <h2 className="font-serif text-4xl md:text-5xl tracking-tightish text-ink leading-tight text-balance">
+          Thank you for <span className="italic-sage">taking part.</span>
+        </h2>
+        <p className="mt-3 text-ink/60 text-balance">
+          The session is wrapped. You can close this tab whenever you&rsquo;re ready.
+        </p>
+      </motion.div>
+    </div>
+  )
 }
 
 function AlreadyCompleted({

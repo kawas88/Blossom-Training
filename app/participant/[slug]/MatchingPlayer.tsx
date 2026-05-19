@@ -1,8 +1,21 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Check, Sparkles } from 'lucide-react'
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  TouchSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
 import type {
   AgeGroup,
   Exercise,
@@ -11,6 +24,7 @@ import type {
 } from '@/lib/exercises'
 import type { Training, Participant } from '@/lib/types'
 import { Button } from '@/components/ui/Button'
+import { cn } from '@/lib/utils'
 
 type Props = {
   training: Training
@@ -68,7 +82,8 @@ export function MatchingPlayer({
     return out
   })
 
-  const [selected, setSelected] = useState<string | null>(null)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [overId, setOverId] = useState<string | null>(null)
   const [shakeId, setShakeId] = useState<string | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [submitting, setSubmitting] = useState(false)
@@ -79,51 +94,74 @@ export function MatchingPlayer({
   const placedCount = Object.values(states).filter((s) => s.wasCorrect).length
   const allDone = placedCount === items.length && items.length > 0
 
+  // ---------------------------------------------------------------------
+  // Drag sensors. PointerSensor with a 4px activation distance avoids
+  // accidental drags on touch; TouchSensor with a short hold delay keeps
+  // taps responsive on mobile.
+  // ---------------------------------------------------------------------
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 80, tolerance: 6 } }),
+  )
+
+  // Pre-build maps for fast lookups during drag events.
+  const itemMap = useMemo(() => {
+    const m = new Map<string, Milestone>()
+    for (const it of items) m.set(it.id, it)
+    return m
+  }, [items])
+
   function pushToast(text: string, variant: Toast['variant']) {
     const id = Date.now() + Math.random()
     setToasts((t) => [...t, { id, text, variant }])
-    setTimeout(() => {
-      setToasts((t) => t.filter((x) => x.id !== id))
-    }, 1800)
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 1800)
   }
 
-  function tapItem(itemId: string) {
-    if (states[itemId].wasCorrect) return
-    setSelected((curr) => (curr === itemId ? null : itemId))
+  function handleDragStart(event: DragStartEvent) {
+    setDraggingId(String(event.active.id))
+    setOverId(null)
   }
 
-  function tapCategory(categoryId: string) {
-    if (!selected) return
-    const correctCategoryId = correctPlacements[selected]
+  function handleDragOver(event: DragOverEvent) {
+    setOverId(event.over ? String(event.over.id) : null)
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const itemId = String(event.active.id)
+    const overCategory = event.over ? String(event.over.id) : null
+    setDraggingId(null)
+    setOverId(null)
+
+    if (!overCategory) return // dropped outside any droppable — no-op
+    const correctCategoryId = correctPlacements[itemId]
     if (!correctCategoryId) return
-    const correct = correctCategoryId === categoryId
+    const correct = correctCategoryId === overCategory
 
     setStates((prev) => {
-      const cur = prev[selected]
+      const cur = prev[itemId]
       const isFirst = cur.attempts === 0
       return {
         ...prev,
-        [selected]: {
+        [itemId]: {
           ...cur,
           attempts: cur.attempts + 1,
-          firstAttemptCategoryId: isFirst ? categoryId : cur.firstAttemptCategoryId,
-          placedCategoryId: correct ? categoryId : cur.placedCategoryId,
+          firstAttemptCategoryId: isFirst ? overCategory : cur.firstAttemptCategoryId,
+          placedCategoryId: correct ? overCategory : cur.placedCategoryId,
           wasCorrect: correct ? true : cur.wasCorrect,
         },
       }
     })
 
     if (correct) {
-      pushToast('Correct!', 'success')
-      setSelected(null)
+      pushToast('Nice match!', 'success')
     } else {
       pushToast('Try a different age group', 'error')
-      setShakeId(selected)
-      setSelected(null)
+      setShakeId(itemId)
       setTimeout(() => setShakeId(null), 500)
     }
   }
 
+  // Domain legend
   const legend = useMemo(() => {
     const map = new Map<string, string>()
     for (const it of items) {
@@ -139,7 +177,6 @@ export function MatchingPlayer({
     setSubmitting(true)
     setError(null)
     try {
-      // Build the new response shape.
       const placements: Record<string, string | null> = {}
       const firstAttempts: Record<string, string> = {}
       const attempts: Record<string, number> = {}
@@ -183,6 +220,17 @@ export function MatchingPlayer({
     return map
   }, [categories, items, states])
 
+  // Compute the "drop hint" state for each category given the currently
+  // dragged milestone. This drives the shake / pulse / tint visuals.
+  function hintFor(categoryId: string): 'correct' | 'wrong' | 'none' {
+    if (!draggingId) return 'none'
+    if (overId !== categoryId) return 'none'
+    const correct = correctPlacements[draggingId] === categoryId
+    return correct ? 'correct' : 'wrong'
+  }
+
+  const draggingItem = draggingId ? itemMap.get(draggingId) ?? null : null
+
   if (allDone) {
     return (
       <div className="px-4 md:px-6 py-12 md:py-16">
@@ -221,9 +269,19 @@ export function MatchingPlayer({
   }
 
   return (
-    <LayoutGroup>
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => {
+        setDraggingId(null)
+        setOverId(null)
+      }}
+    >
       <div className="px-3 md:px-6 py-6 md:py-8 pb-32">
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-auto max-w-6xl">
+          {/* Header + progress */}
           <div className="mb-4">
             <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-ink/60">
               Warm-up
@@ -246,7 +304,9 @@ export function MatchingPlayer({
               <motion.div
                 className="h-full bg-sage"
                 initial={false}
-                animate={{ width: `${(placedCount / Math.max(1, items.length)) * 100}%` }}
+                animate={{
+                  width: `${(placedCount / Math.max(1, items.length)) * 100}%`,
+                }}
                 transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
               />
             </div>
@@ -269,129 +329,89 @@ export function MatchingPlayer({
             </div>
           )}
 
-          <section className="mb-6">
-            <h2 className="font-mono text-[10px] tracking-[0.2em] uppercase text-ink/60 mb-2">
-              Milestone cards
-            </h2>
-            <div className="rounded-2xl bg-white border border-ink/10 p-3 md:p-4 min-h-[88px]">
-              <div className="flex flex-wrap gap-2">
-                <AnimatePresence>
-                  {shuffled
-                    .filter((it) => !states[it.id]?.wasCorrect)
-                    .map((it) => {
-                      const isSelected = selected === it.id
-                      const isShaking = shakeId === it.id
-                      return (
-                        <motion.button
+          {/*
+            Side-by-side on tablet/desktop, stacked on mobile.
+            Left: milestones bank. Right: age-group drop targets.
+          */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5">
+            {/* Milestones bank */}
+            <section>
+              <h2 className="font-mono text-[10px] tracking-[0.2em] uppercase text-ink/60 mb-2">
+                Drag a milestone →
+              </h2>
+              <div className="rounded-2xl bg-white border border-ink/10 p-3 md:p-4 min-h-[140px]">
+                <div className="flex flex-wrap gap-2">
+                  <AnimatePresence>
+                    {shuffled
+                      .filter((it) => !states[it.id]?.wasCorrect)
+                      .map((it) => (
+                        <DraggableMilestone
                           key={it.id}
-                          layout
-                          layoutId={`item-${it.id}`}
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{
-                            opacity: 1,
-                            scale: isSelected ? 1.05 : 1,
-                          }}
-                          exit={{ opacity: 0, scale: 0.8 }}
-                          transition={{
-                            duration: 0.3,
-                            ease: [0.16, 1, 0.3, 1],
-                            layout: { duration: 0.4 },
-                          }}
-                          onClick={() => tapItem(it.id)}
-                          className={[
-                            'group inline-flex items-center gap-2 rounded-full px-3 py-2 text-left text-sm transition-colors min-h-[44px]',
-                            'border focus:outline-none focus-visible:ring-4',
-                            isSelected
-                              ? 'bg-ink text-cream border-ink shadow-card focus-visible:ring-sage/30'
-                              : 'bg-cream text-ink border-ink/15 hover:bg-sand/50 focus-visible:ring-ink/20',
-                            isShaking && 'animate-shake',
-                          ]
-                            .filter(Boolean)
-                            .join(' ')}
-                        >
-                          {it.tagColor && (
-                            <span
-                              className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
-                              style={{ backgroundColor: it.tagColor }}
-                              aria-hidden="true"
-                            />
-                          )}
-                          <span className="leading-snug">{it.text}</span>
-                        </motion.button>
-                      )
-                    })}
-                </AnimatePresence>
-              </div>
-
-              {legend.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-ink/10 flex flex-wrap gap-x-4 gap-y-1.5">
-                  {legend.map((l) => (
-                    <div
-                      key={l.label}
-                      className="inline-flex items-center gap-1.5 text-[11px] text-ink/60"
-                    >
-                      <span
-                        className="inline-block h-1.5 w-1.5 rounded-full"
-                        style={{ backgroundColor: l.color }}
-                      />
-                      <span>{l.label}</span>
-                    </div>
-                  ))}
+                          milestone={it}
+                          isShaking={shakeId === it.id}
+                          isDragging={draggingId === it.id}
+                        />
+                      ))}
+                  </AnimatePresence>
                 </div>
-              )}
-            </div>
-          </section>
 
-          <section>
-            <h2 className="font-mono text-[10px] tracking-[0.2em] uppercase text-ink/60 mb-2">
-              Age groups
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {categories.map((c) => {
-                const isTarget = !!selected
-                const placed = placedByCategory[c.id] || []
-                return (
-                  <motion.button
+                {legend.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-ink/10 flex flex-wrap gap-x-4 gap-y-1.5">
+                    {legend.map((l) => (
+                      <div
+                        key={l.label}
+                        className="inline-flex items-center gap-1.5 text-[11px] text-ink/60"
+                      >
+                        <span
+                          className="inline-block h-1.5 w-1.5 rounded-full"
+                          style={{ backgroundColor: l.color }}
+                        />
+                        <span>{l.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Age-group drop targets */}
+            <section>
+              <h2 className="font-mono text-[10px] tracking-[0.2em] uppercase text-ink/60 mb-2">
+                ← Into the right age group
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {categories.map((c) => (
+                  <DroppableCategory
                     key={c.id}
-                    layout
-                    onClick={() => tapCategory(c.id)}
-                    disabled={!selected}
-                    className={[
-                      'text-left rounded-2xl border bg-white p-4 transition-all',
-                      'min-h-[140px] flex flex-col',
-                      isTarget
-                        ? 'border-sage shadow-soft cursor-pointer animate-pulse-soft'
-                        : 'border-ink/10 cursor-default',
-                    ].join(' ')}
-                  >
-                    <div className="font-serif text-lg tracking-tightish text-ink">
-                      {c.label}
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      <AnimatePresence>
-                        {placed.map((it) => (
-                          <motion.span
-                            key={it.id}
-                            layout
-                            layoutId={`item-${it.id}`}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                            className="inline-flex items-center gap-1.5 rounded-full bg-success/10 border border-success/30 px-2 py-1 text-xs text-success"
-                          >
-                            <Check className="h-3 w-3" strokeWidth={2.5} />
-                            <span className="text-ink/80 line-clamp-1">{it.text}</span>
-                          </motion.span>
-                        ))}
-                      </AnimatePresence>
-                    </div>
-                  </motion.button>
-                )
-              })}
-            </div>
-          </section>
+                    category={c}
+                    hint={hintFor(c.id)}
+                    placedItems={placedByCategory[c.id] || []}
+                  />
+                ))}
+              </div>
+            </section>
+          </div>
         </div>
 
+        {/* Drag preview — what the user sees attached to the cursor/finger */}
+        <DragOverlay dropAnimation={null}>
+          {draggingItem ? (
+            <span
+              className="inline-flex items-center gap-2 rounded-full bg-ink text-cream border border-ink shadow-card px-3 py-2 text-sm pointer-events-none"
+              style={{ transform: 'rotate(-2deg)' }}
+            >
+              {draggingItem.tagColor && (
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: draggingItem.tagColor }}
+                />
+              )}
+              <span className="leading-snug">{draggingItem.text}</span>
+            </span>
+          ) : null}
+        </DragOverlay>
+
+        {/* Toasts */}
         <div className="fixed inset-x-0 bottom-6 z-40 pointer-events-none flex flex-col items-center gap-2 px-4">
           <AnimatePresence>
             {toasts.map((t) => (
@@ -401,12 +421,10 @@ export function MatchingPlayer({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 8, scale: 0.95 }}
                 transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                className={[
+                className={cn(
                   'pointer-events-auto rounded-full px-5 py-2.5 text-sm font-medium shadow-card',
-                  t.variant === 'success'
-                    ? 'bg-success text-white'
-                    : 'bg-error text-white',
-                ].join(' ')}
+                  t.variant === 'success' ? 'bg-success text-white' : 'bg-error text-white',
+                )}
               >
                 {t.text}
               </motion.div>
@@ -414,6 +432,114 @@ export function MatchingPlayer({
           </AnimatePresence>
         </div>
       </div>
-    </LayoutGroup>
+    </DndContext>
+  )
+}
+
+// ---------------------------------------------------------------------
+// Draggable milestone card
+// ---------------------------------------------------------------------
+function DraggableMilestone({
+  milestone,
+  isShaking,
+  isDragging,
+}: {
+  milestone: Milestone
+  isShaking: boolean
+  isDragging: boolean
+}) {
+  const { attributes, listeners, setNodeRef } = useDraggable({
+    id: milestone.id,
+  })
+  return (
+    <motion.button
+      ref={setNodeRef}
+      layout
+      layoutId={`item-${milestone.id}`}
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{
+        opacity: isDragging ? 0.3 : 1,
+        scale: 1,
+      }}
+      exit={{ opacity: 0, scale: 0.8 }}
+      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+      className={cn(
+        'inline-flex items-center gap-2 rounded-full px-3 py-2 text-left text-sm transition-colors min-h-[44px]',
+        'border bg-cream text-ink border-ink/15',
+        'focus:outline-none focus-visible:ring-4 focus-visible:ring-ink/20',
+        'cursor-grab active:cursor-grabbing touch-none select-none',
+        isShaking && 'animate-shake',
+      )}
+      {...attributes}
+      {...listeners}
+    >
+      {milestone.tagColor && (
+        <span
+          className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
+          style={{ backgroundColor: milestone.tagColor }}
+          aria-hidden="true"
+        />
+      )}
+      <span className="leading-snug">{milestone.text}</span>
+    </motion.button>
+  )
+}
+
+// ---------------------------------------------------------------------
+// Droppable age-group card. Shakes if the currently-dragged milestone
+// doesn't belong here; pulses + tints sage if it does.
+// ---------------------------------------------------------------------
+function DroppableCategory({
+  category,
+  hint,
+  placedItems,
+}: {
+  category: AgeGroup
+  hint: 'correct' | 'wrong' | 'none'
+  placedItems: Milestone[]
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: category.id })
+  return (
+    <motion.div
+      ref={setNodeRef}
+      layout
+      className={cn(
+        'text-left rounded-2xl border bg-white p-3 md:p-4 transition-all min-h-[110px] flex flex-col',
+        hint === 'correct' &&
+          'border-sage shadow-card animate-pulse-soft scale-[1.02]',
+        hint === 'wrong' && 'border-error/60 animate-shake',
+        hint === 'none' && (isOver ? 'border-ink/30' : 'border-ink/10'),
+      )}
+      style={{
+        backgroundColor:
+          hint === 'correct'
+            ? 'rgba(29, 110, 82, 0.06)'
+            : hint === 'wrong'
+            ? 'rgba(239, 68, 68, 0.04)'
+            : undefined,
+      }}
+    >
+      <div className="font-serif text-base md:text-lg tracking-tightish text-ink">
+        {category.label}
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        <AnimatePresence>
+          {placedItems.map((it) => (
+            <motion.span
+              key={it.id}
+              layout
+              layoutId={`item-${it.id}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              className="inline-flex items-center gap-1.5 rounded-full bg-success/10 border border-success/30 px-2 py-1 text-xs text-success"
+            >
+              <Check className="h-3 w-3" strokeWidth={2.5} />
+              <span className="text-ink/80 line-clamp-1">{it.text}</span>
+            </motion.span>
+          ))}
+        </AnimatePresence>
+      </div>
+    </motion.div>
   )
 }

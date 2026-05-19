@@ -11,6 +11,7 @@ import {
   RotateCcw,
   ArrowLeft,
   Lock,
+  Play,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
@@ -32,7 +33,6 @@ import type {
   TrainerNote,
 } from '@/lib/types'
 import { OverviewTab } from './tabs/OverviewTab'
-import { IcebreakerTab } from './tabs/IcebreakerTab'
 import { SurveyTab } from './tabs/SurveyTab'
 import { NotesTab } from './tabs/NotesTab'
 import { ExportTab } from './tabs/ExportTab'
@@ -61,6 +61,7 @@ type Props = {
   workspaceExercises: Exercise[]
   matchingExerciseId: string | null
   exerciseResponses: ExerciseResponse[]
+  hasTrainerPaced: boolean
 }
 
 export function TrainingDashboard(props: Props) {
@@ -222,6 +223,15 @@ export function TrainingDashboard(props: Props) {
               <ExternalLink className="h-4 w-4 text-ink/50" />
               Open as participant
             </Link>
+            {props.hasTrainerPaced && training.status === 'live' && (
+              <Link
+                href={`/admin/trainings/${training.id}/live`}
+                className="inline-flex items-center gap-2 rounded-full bg-sage text-cream hover:bg-sage/90 px-4 py-2 text-sm font-medium transition-colors"
+              >
+                <Play className="h-4 w-4" />
+                Run live
+              </Link>
+            )}
             <StatusControl
               status={training.status}
               onChange={changeStatus}

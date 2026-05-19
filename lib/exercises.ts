@@ -57,9 +57,15 @@ export interface ReflectionConfig {
   aiAnalysis: boolean
 }
 
-// Placeholder shapes for types coming in 3B/3C — keeps the union safe
+// Placeholder shapes for types coming in 3C — keeps the union safe
 // to extend without breaking the type system.
-export type WordCloudConfig = Record<string, never>
+export interface WordCloudConfig {
+  prompt: string
+  maxLength: number
+  allowMultiple: boolean
+  caseSensitive: boolean
+  stopWords: string[]
+}
 export type RankingConfig = Record<string, never>
 export type AnnotationConfig = Record<string, never>
 export type ScenarioConfig = Record<string, never>
@@ -84,12 +90,15 @@ export type Exercise = {
   updated_at: string
 }
 
+export type PacingMode = 'self' | 'trainer'
+
 export type TrainingExerciseRow = {
   id: string
   training_id: string
   exercise_id: string
   position: number
   required: boolean
+  pacing: PacingMode
   created_at: string
 }
 
@@ -97,6 +106,7 @@ export type TrainingExerciseWithDef = Exercise & {
   link_id: string
   position: number
   required: boolean
+  pacing: PacingMode
 }
 
 export type MatchingResponseShape = {
@@ -116,6 +126,10 @@ export type ReflectionResponseShape = {
     summary: string
     themes: { title: string; description: string; frequency: 'common' | 'some' | 'few' }[]
   } | null
+}
+
+export type WordCloudResponseShape = {
+  words: string[]
 }
 
 export type ExerciseResponse = {
@@ -150,9 +164,23 @@ export function isReflectionExercise(
   return ex.type === 'reflection'
 }
 
+export function isWordCloudExercise(
+  ex: Exercise,
+): ex is Exercise & { config: WordCloudConfig } {
+  return ex.type === 'word_cloud'
+}
+
 // ---------------------------------------------------------------------
 // Type-aware default config — used by the new-exercise builder.
 // ---------------------------------------------------------------------
+
+export const DEFAULT_STOP_WORDS = [
+  'the', 'a', 'an', 'and', 'or', 'but', 'is', 'are', 'was', 'were',
+  'be', 'been', 'being', 'i', 'me', 'my', 'we', 'us', 'our',
+  'you', 'your', 'he', 'she', 'it', 'they', 'them',
+  'to', 'of', 'in', 'on', 'for', 'with', 'at', 'by', 'from',
+  'this', 'that', 'these', 'those', 'so', 'just',
+]
 
 export function defaultConfigFor(type: ExerciseType): ExerciseConfig {
   switch (type) {
@@ -162,6 +190,14 @@ export function defaultConfigFor(type: ExerciseType): ExerciseConfig {
       return { questions: [], shuffleQuestions: false, showCorrectAfterEach: true }
     case 'reflection':
       return { prompt: '', minLength: 20, aiAnalysis: true }
+    case 'word_cloud':
+      return {
+        prompt: '',
+        maxLength: 30,
+        allowMultiple: false,
+        caseSensitive: false,
+        stopWords: [...DEFAULT_STOP_WORDS],
+      }
     default:
       return {}
   }
@@ -191,7 +227,12 @@ export const EXERCISE_TYPE_BLURBS: Record<ExerciseType, string> = {
   scenario: 'Branching narrative — coming soon.',
 }
 
-export const ENABLED_EXERCISE_TYPES: ExerciseType[] = ['matching', 'quiz', 'reflection']
+export const ENABLED_EXERCISE_TYPES: ExerciseType[] = [
+  'matching',
+  'quiz',
+  'reflection',
+  'word_cloud',
+]
 
 // ---------------------------------------------------------------------
 // Read helpers — service-role clients only. (Admin route handlers and
@@ -226,7 +267,7 @@ export async function listTrainingExercises(
   const supabase = createAdminClient()
   const { data } = await supabase
     .from('training_exercises')
-    .select('id, training_id, exercise_id, position, required, created_at, exercises(*)')
+    .select('id, training_id, exercise_id, position, required, pacing, created_at, exercises(*)')
     .eq('training_id', trainingId)
     .order('position', { ascending: true })
   if (!data) return []
@@ -244,6 +285,7 @@ export async function listTrainingExercises(
         link_id: linkRow.id,
         position: linkRow.position,
         required: linkRow.required,
+        pacing: (linkRow.pacing as PacingMode) ?? 'self',
       } satisfies TrainingExerciseWithDef
     })
     .filter((x): x is TrainingExerciseWithDef => x !== null)
