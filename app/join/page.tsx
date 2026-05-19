@@ -68,16 +68,20 @@ export default async function JoinPage({
             ← Back
           </Link>
 
-          <div className="mt-8 rounded-2xl bg-white border border-ink/10 shadow-card p-6 md:p-8">
+          <div className="mt-8 rounded-3xl bg-white border-[1.5px] border-line shadow-card p-6 md:p-8">
             <Pill variant="live">● Live</Pill>
-            <h1 className="mt-4 font-serif text-3xl md:text-4xl tracking-tightish text-ink leading-[1.1]">
+            <h1 className="mt-4 font-serif text-3xl md:text-4xl font-extrabold tracking-tightish text-deep leading-[1.1]">
               {training.title}
             </h1>
-            <p className="mt-2 text-sm text-ink/60">
-              {[training.nursery_name, training.trainer_name].filter(Boolean).join(' · ')}
-            </p>
+            {(training.nursery_name || training.trainer_name) && (
+              <p className="mt-2 text-sm text-deep/60">
+                {[training.nursery_name, training.trainer_name]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
+            )}
 
-            <div className="mt-6 border-t border-ink/10 pt-6">
+            <div className="mt-6 border-t border-line pt-6">
               <JoinForm trainingId={training.id} slug={training.slug} />
             </div>
           </div>
@@ -93,16 +97,24 @@ function NotFoundShell({ code }: { code: string }) {
       <Decoration />
       <div className="flex-1 px-6 py-20 flex items-center">
         <div className="mx-auto max-w-md w-full">
-          <div className="rounded-2xl bg-white border border-ink/10 shadow-card p-8 text-center">
-            <h1 className="font-serif text-3xl tracking-tightish text-ink">
-              Code not found
+          <div className="rounded-3xl bg-white border-[1.5px] border-line shadow-card p-8 text-center">
+            <h1 className="font-serif text-3xl font-extrabold tracking-tightish text-deep">
+              We couldn&rsquo;t find that code
             </h1>
-            <p className="mt-3 text-sm text-ink/60">
-              We couldn&rsquo;t find a training with the code{' '}
-              <span className="font-mono">{code}</span>. Double-check with your trainer.
+            <p className="mt-4 text-sm text-deep/70">
+              The code{' '}
+              <span className="font-mono font-bold tracking-wider text-deep bg-blush-deep rounded px-1.5 py-0.5">
+                {code}
+              </span>{' '}
+              doesn&rsquo;t match a live training.
             </p>
-            <Link href="/" className="mt-6 inline-block">
-              <Button>Try again</Button>
+            <ul className="mt-5 text-left text-sm text-deep/70 space-y-2">
+              <li>• Double-check the code with your trainer — it&rsquo;s case-insensitive.</li>
+              <li>• If the trainer sent you a link, tap that link instead.</li>
+              <li>• If the session ended, you won&rsquo;t be able to join.</li>
+            </ul>
+            <Link href="/" className="mt-7 inline-block">
+              <Button>Try a different code</Button>
             </Link>
           </div>
         </div>

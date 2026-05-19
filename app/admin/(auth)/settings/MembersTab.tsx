@@ -54,6 +54,13 @@ export function MembersTab({
   const [error, setError] = useState<string | null>(null)
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
 
+  // Inline confirm state — rather than the jarring browser confirm() dialog
+  // we toggle a tiny "Really remove? Yes / Cancel" strip on the row itself.
+  // Friendlier on mobile and accessible to screen readers.
+  const [pendingRemove, setPendingRemove] = useState<string | null>(null)
+  const [pendingRevoke, setPendingRevoke] = useState<string | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
+
   async function sendInvite(e: React.FormEvent) {
     e.preventDefault()
     if (submitting || !email.trim()) return
@@ -82,19 +89,33 @@ export function MembersTab({
   }
 
   async function removeMember(memberId: string) {
-    if (!confirm('Remove this member from the workspace?')) return
-    const res = await fetch(`/api/admin/invites/members/${memberId}`, {
-      method: 'DELETE',
-    })
-    if (res.ok) router.refresh()
+    setBusyId(memberId)
+    try {
+      const res = await fetch(`/api/admin/invites/members/${memberId}`, {
+        method: 'DELETE',
+      })
+      if (res.ok) {
+        setPendingRemove(null)
+        router.refresh()
+      }
+    } finally {
+      setBusyId(null)
+    }
   }
 
   async function revokeInvite(inviteId: string) {
-    if (!confirm('Revoke this invite?')) return
-    const res = await fetch(`/api/admin/invites/${inviteId}`, {
-      method: 'DELETE',
-    })
-    if (res.ok) router.refresh()
+    setBusyId(inviteId)
+    try {
+      const res = await fetch(`/api/admin/invites/${inviteId}`, {
+        method: 'DELETE',
+      })
+      if (res.ok) {
+        setPendingRevoke(null)
+        router.refresh()
+      }
+    } finally {
+      setBusyId(null)
+    }
   }
 
   async function resendInvite(inviteId: string) {
@@ -210,15 +231,34 @@ export function MembersTab({
                   <td className="px-5 py-3 text-right">
                     {canManage &&
                       m.role !== 'owner' &&
-                      m.user_id !== currentUserId && (
+                      m.user_id !== currentUserId &&
+                      (pendingRemove === m.id ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs">
+                          <span className="text-deep/70">Remove?</span>
+                          <button
+                            onClick={() => removeMember(m.id)}
+                            disabled={busyId === m.id}
+                            className="rounded-full bg-pink text-white px-2.5 py-1 font-semibold hover:bg-pink/90 disabled:opacity-60"
+                          >
+                            {busyId === m.id ? '…' : 'Yes'}
+                          </button>
+                          <button
+                            onClick={() => setPendingRemove(null)}
+                            disabled={busyId === m.id}
+                            className="rounded-full border border-line px-2.5 py-1 text-deep/70 hover:bg-blush-deep"
+                          >
+                            Cancel
+                          </button>
+                        </span>
+                      ) : (
                         <button
-                          onClick={() => removeMember(m.id)}
-                          className="text-ink/40 hover:text-error"
+                          onClick={() => setPendingRemove(m.id)}
+                          className="text-deep/40 hover:text-pink"
                           aria-label="Remove member"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
-                      )}
+                      ))}
                   </td>
                 </tr>
               ))}
@@ -276,12 +316,31 @@ export function MembersTab({
                         >
                           <RefreshCw className="h-3.5 w-3.5" /> Resend
                         </button>
-                        <button
-                          onClick={() => revokeInvite(inv.id)}
-                          className="inline-flex items-center gap-1 rounded-full border border-ink/15 px-3 py-1.5 text-xs text-ink/70 hover:bg-sand/40"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" /> Revoke
-                        </button>
+                        {pendingRevoke === inv.id ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs">
+                            <button
+                              onClick={() => revokeInvite(inv.id)}
+                              disabled={busyId === inv.id}
+                              className="rounded-full bg-pink text-white px-2.5 py-1 font-semibold hover:bg-pink/90 disabled:opacity-60"
+                            >
+                              {busyId === inv.id ? '…' : 'Confirm revoke'}
+                            </button>
+                            <button
+                              onClick={() => setPendingRevoke(null)}
+                              disabled={busyId === inv.id}
+                              className="rounded-full border border-line px-2.5 py-1 text-deep/70 hover:bg-blush-deep"
+                            >
+                              Cancel
+                            </button>
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => setPendingRevoke(inv.id)}
+                            className="inline-flex items-center gap-1 rounded-full border border-line px-3 py-1.5 text-xs text-deep/70 hover:bg-blush-deep"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" /> Revoke
+                          </button>
+                        )}
                       </>
                     )}
                   </div>

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 
@@ -62,6 +63,7 @@ export function LoginForm() {
         </div>
       )}
       <Button type="submit" size="lg" className="w-full" disabled={submitting}>
+        {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
         {submitting ? 'Signing in…' : 'Sign in'}
       </Button>
     </form>

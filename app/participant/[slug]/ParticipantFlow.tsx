@@ -41,6 +41,7 @@ import { AnnotationPlayer } from './AnnotationPlayer'
 import { ScenarioPlayer } from './ScenarioPlayer'
 import { SurveyForm } from './SurveyForm'
 import { ActivityHub, type HubActivity } from './ActivityHub'
+import { QnAPanel } from './QnAPanel'
 
 type LocalStage =
   | { kind: 'hub' }
@@ -281,6 +282,15 @@ export function ParticipantFlow({
           backToHub,
         })}
       </div>
+
+      {/* Live Q&A drawer — available throughout the participant flow until
+          the session is wrapped. Hidden during the explicit wrapped stage
+          and on the survey since it's a different mental mode. */}
+      {effectiveStage.kind !== 'wrapped' &&
+        effectiveStage.kind !== 'survey' &&
+        effectiveStage.kind !== 'survey-done' && (
+          <QnAPanel training={training} participant={participant} />
+        )}
     </main>
   )
 }
@@ -503,6 +513,13 @@ function renderStage(args: StageRenderArgs) {
 }
 
 function WaitingForTrainer() {
+  // Show a "still here?" nudge after 30s on the waiting screen — covers
+  // the most common worry on classroom wifi: "did I disconnect?".
+  const [showNudge, setShowNudge] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setShowNudge(true), 30_000)
+    return () => clearTimeout(t)
+  }, [])
   return (
     <div className="px-4 md:px-6 py-20 md:py-28 flex items-center justify-center">
       <motion.div
@@ -515,7 +532,7 @@ function WaitingForTrainer() {
           {[0, 1, 2].map((i) => (
             <motion.span
               key={i}
-              className="h-2.5 w-2.5 rounded-full bg-sage"
+              className="h-2.5 w-2.5 rounded-full bg-wisteria"
               animate={{ opacity: [0.3, 1, 0.3], y: [0, -4, 0] }}
               transition={{
                 duration: 1.2,
@@ -526,12 +543,32 @@ function WaitingForTrainer() {
             />
           ))}
         </div>
-        <h2 className="font-serif text-3xl md:text-4xl tracking-tightish text-ink leading-tight text-balance">
-          Waiting for the trainer to <span className="italic-sage">begin.</span>
+        <h2 className="font-serif text-3xl md:text-4xl font-extrabold tracking-tightish text-deep leading-tight text-balance">
+          Waiting for the trainer to <span className="italic-wisteria">begin.</span>
         </h2>
-        <p className="mt-3 text-ink/60 text-balance">
+        <p className="mt-3 text-deep/60 text-balance">
           When they start the session, the first activity will appear here.
         </p>
+        {showNudge && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="mt-8 rounded-2xl bg-white border-[1.5px] border-line p-4 text-sm text-deep/70"
+          >
+            <p>
+              Still waiting? You&rsquo;re connected, just give it a moment. If
+              the session already started, refresh the page.
+            </p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-wisteria text-white px-4 py-2 text-xs font-semibold hover:bg-wisteria/90 transition-colors"
+            >
+              Refresh
+            </button>
+          </motion.div>
+        )}
       </motion.div>
     </div>
   )
@@ -550,14 +587,18 @@ function Wrapped() {
           initial={{ scale: 0.6, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.15, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-sage/15"
+          className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-wisteria/15"
         >
-          <Heart className="h-10 w-10 fill-sage text-sage" strokeWidth={1.5} />
+          <Heart className="h-10 w-10 fill-wisteria text-wisteria" strokeWidth={1.5} />
         </motion.div>
-        <h2 className="font-serif text-4xl md:text-5xl tracking-tightish text-ink leading-tight text-balance">
-          Thank you for <span className="italic-sage">taking part.</span>
+        <h2 className="font-serif text-4xl md:text-5xl font-extrabold tracking-tightish text-deep leading-tight text-balance">
+          Thank you for <span className="italic-wisteria">taking part.</span>
         </h2>
-        <p className="mt-3 text-ink/60 text-balance">
+        <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-mint/25 text-deep px-4 py-1.5 text-xs font-semibold">
+          <Check className="h-3.5 w-3.5" strokeWidth={3} />
+          All your answers were saved
+        </div>
+        <p className="mt-4 text-deep/60 text-balance">
           The session is wrapped. You can close this tab whenever you&rsquo;re ready.
         </p>
       </motion.div>

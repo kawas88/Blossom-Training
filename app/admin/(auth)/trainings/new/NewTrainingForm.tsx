@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea, Select } from '@/components/ui/Input'
 
@@ -86,7 +87,8 @@ export function NewTrainingForm({ icebreakers, surveys }: Props) {
       />
       <div className="grid sm:grid-cols-2 gap-5">
         <Select
-          label="Icebreaker"
+          label="Warm-up activity (optional)"
+          hint="A matching game or quick prompts to start the session."
           value={icebreakerId}
           onChange={(e) => setIcebreakerId(e.target.value)}
         >
@@ -98,7 +100,8 @@ export function NewTrainingForm({ icebreakers, surveys }: Props) {
           ))}
         </Select>
         <Select
-          label="Survey"
+          label="Feedback form (optional)"
+          hint="Questions participants answer after the session."
           value={surveyId}
           onChange={(e) => setSurveyId(e.target.value)}
         >
@@ -123,6 +126,7 @@ export function NewTrainingForm({ icebreakers, surveys }: Props) {
       )}
       <div className="flex gap-2 pt-2">
         <Button type="submit" disabled={submitting}>
+          {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
           {submitting ? 'Creating…' : 'Create training'}
         </Button>
         <Button

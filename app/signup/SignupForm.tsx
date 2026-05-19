@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { cn } from '@/lib/utils'
@@ -161,6 +162,7 @@ export function SignupForm() {
       )}
 
       <Button type="submit" size="lg" className="w-full" disabled={!canSubmit || submitting}>
+        {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
         {submitting ? 'Creating your workspace…' : 'Create your account'}
       </Button>
     </form>
