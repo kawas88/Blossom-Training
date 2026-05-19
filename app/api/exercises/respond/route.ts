@@ -2,13 +2,21 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
   getExercise,
+  isAnnotationExercise,
   isMatchingExercise,
   isQuizExercise,
+  isRankingExercise,
   isReflectionExercise,
+  isScenarioExercise,
   isWordCloudExercise,
+  type AnnotationConfig,
+  type AnnotationRegion,
+  type AnnotationResponseShape,
   type MatchingResponseShape,
   type QuizResponseShape,
+  type RankingResponseShape,
   type ReflectionResponseShape,
+  type ScenarioResponseShape,
   type WordCloudConfig,
   type WordCloudResponseShape,
 } from '@/lib/exercises'
@@ -127,6 +135,76 @@ export async function POST(req: Request) {
         participantId,
         rawResponse as WordCloudResponseShape,
       )
+    } else if (isRankingExercise(exercise)) {
+      const cast = rawResponse as RankingResponseShape
+      const ranked = Array.isArray(cast?.rankedOrder) ? cast.rankedOrder : []
+      const itemIds = new Set(exercise.config.items.map((i) => i.id))
+      const cleanRanked = ranked.filter(
+        (id): id is string => typeof id === 'string' && itemIds.has(id),
+      )
+      if (cleanRanked.length === 0) {
+        return NextResponse.json({ error: 'Invalid ranking response' }, { status: 400 })
+      }
+      responsePayload = { rankedOrder: cleanRanked }
+      if (exercise.config.correctOrder && exercise.config.correctOrder.length > 0) {
+        // Exact-position match count — simple, easy to explain to trainers.
+        let correct = 0
+        for (let i = 0; i < exercise.config.correctOrder.length; i++) {
+          if (cleanRanked[i] === exercise.config.correctOrder[i]) correct++
+        }
+        score = correct
+      }
+    } else if (isAnnotationExercise(exercise)) {
+      const cast = rawResponse as AnnotationResponseShape
+      const taps = Array.isArray(cast?.taps) ? cast.taps : []
+      // Recompute hit detection server-side — never trust the client's claim
+      // about which region was hit.
+      const sanitized: AnnotationResponseShape['taps'] = []
+      for (const t of taps) {
+        const x = clampUnit(t?.x)
+        const y = clampUnit(t?.y)
+        if (x === null || y === null) continue
+        const hitRegionId = detectHit(exercise.config.regions, x, y)
+        sanitized.push({ x, y, hitRegionId })
+      }
+      if (sanitized.length === 0) {
+        return NextResponse.json({ error: 'No taps recorded' }, { status: 400 })
+      }
+      responsePayload = { taps: sanitized }
+      score = scoreAnnotation(exercise.config, sanitized)
+    } else if (isScenarioExercise(exercise)) {
+      const cast = rawResponse as ScenarioResponseShape
+      const path = Array.isArray(cast?.path)
+        ? cast.path.filter((v): v is string => typeof v === 'string')
+        : []
+      const choices = Array.isArray(cast?.choices)
+        ? cast.choices.filter(
+            (c): c is ScenarioResponseShape['choices'][number] =>
+              !!c &&
+              typeof c.nodeId === 'string' &&
+              typeof c.choiceIndex === 'number' &&
+              typeof c.choiceLabel === 'string',
+          )
+        : []
+      const finalOutcome =
+        cast?.finalOutcome === 'positive' ||
+        cast?.finalOutcome === 'neutral' ||
+        cast?.finalOutcome === 'negative'
+          ? cast.finalOutcome
+          : null
+      if (path.length === 0) {
+        return NextResponse.json({ error: 'Empty scenario path' }, { status: 400 })
+      }
+      responsePayload = { path, choices, finalOutcome }
+      // Score: positive=1, neutral=0.5, negative=0. Useful for filtering.
+      score =
+        finalOutcome === 'positive'
+          ? 1
+          : finalOutcome === 'neutral'
+          ? 0.5
+          : finalOutcome === 'negative'
+          ? 0
+          : null
     } else {
       return NextResponse.json(
         { error: `Exercise type "${exercise.type}" is not playable yet` },
@@ -295,4 +373,76 @@ function normalizeWords(input: string[], config: WordCloudConfig): string[] {
     if (!config.allowMultiple) break
   }
   return out
+}
+
+// ---------------------------------------------------------------------
+// Annotation — server-side hit detection. Coords are all normalized [0, 1]
+// relative to the image's natural dimensions.
+// ---------------------------------------------------------------------
+function clampUnit(v: unknown): number | null {
+  if (typeof v !== 'number' || Number.isNaN(v)) return null
+  if (v < 0 || v > 1) return null
+  return v
+}
+
+function detectHit(
+  regions: AnnotationRegion[],
+  x: number,
+  y: number,
+): string | null {
+  for (const r of regions) {
+    if (hitTest(r, x, y)) return r.id
+  }
+  return null
+}
+
+function hitTest(region: AnnotationRegion, x: number, y: number): boolean {
+  const c = region.coords
+  if (region.shape === 'circle') {
+    if (c.length < 3) return false
+    const [cx, cy, rad] = c
+    return Math.hypot(x - cx, y - cy) <= rad
+  }
+  if (region.shape === 'rectangle') {
+    if (c.length < 4) return false
+    const [rx, ry, rw, rh] = c
+    return x >= rx && x <= rx + rw && y >= ry && y <= ry + rh
+  }
+  if (region.shape === 'polygon') {
+    if (c.length < 6) return false
+    return pointInPolygon(x, y, c)
+  }
+  return false
+}
+
+function pointInPolygon(x: number, y: number, coords: number[]): boolean {
+  let inside = false
+  const n = Math.floor(coords.length / 2)
+  let j = n - 1
+  for (let i = 0; i < n; i++) {
+    const xi = coords[i * 2]
+    const yi = coords[i * 2 + 1]
+    const xj = coords[j * 2]
+    const yj = coords[j * 2 + 1]
+    const intersect =
+      yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi + 1e-12) + xi
+    if (intersect) inside = !inside
+    j = i
+  }
+  return inside
+}
+
+function scoreAnnotation(
+  config: AnnotationConfig,
+  taps: AnnotationResponseShape['taps'],
+): number {
+  const hitRegions = new Set<string>()
+  for (const t of taps) {
+    if (t.hitRegionId) hitRegions.add(t.hitRegionId)
+  }
+  if (config.mode === 'find_one') {
+    return hitRegions.size > 0 ? 1 : 0
+  }
+  if (config.regions.length === 0) return 0
+  return hitRegions.size / config.regions.length
 }

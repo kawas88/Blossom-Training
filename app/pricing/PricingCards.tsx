@@ -37,10 +37,10 @@ const FEATURES: Record<Plan, { highlight?: string; items: string[] }> = {
       '1 trainer seat',
       'Unlimited training sessions',
       'Unlimited participants per session',
-      'All exercise types (matching, survey, future additions)',
+      'All seven exercise types: Quiz, Reflection, Word Cloud, Matching, Ranking, Image Annotation, Branching Scenarios',
+      'Trainer-paced live sessions',
       'AI sentiment analysis',
       'PDF + CSV exports',
-      'Real-time dashboard',
     ],
   },
   organization: {

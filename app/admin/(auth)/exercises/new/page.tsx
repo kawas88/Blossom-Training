@@ -17,9 +17,9 @@ const ALL_TYPES: { type: ExerciseType; comingSoon: boolean }[] = [
   { type: 'quiz', comingSoon: false },
   { type: 'reflection', comingSoon: false },
   { type: 'word_cloud', comingSoon: false },
-  { type: 'ranking', comingSoon: true },
-  { type: 'annotation', comingSoon: true },
-  { type: 'scenario', comingSoon: true },
+  { type: 'ranking', comingSoon: false },
+  { type: 'annotation', comingSoon: false },
+  { type: 'scenario', comingSoon: false },
 ]
 
 export default function NewExerciseTypePicker() {

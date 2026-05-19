@@ -67,9 +67,72 @@ export interface WordCloudConfig {
   stopWords: string[]
   maxWordsPerParticipant?: number
 }
-export type RankingConfig = Record<string, never>
-export type AnnotationConfig = Record<string, never>
-export type ScenarioConfig = Record<string, never>
+
+export type RankingItem = {
+  id: string
+  label: string
+  description?: string
+}
+
+export interface RankingConfig {
+  prompt: string
+  items: RankingItem[]
+  correctOrder?: string[]
+  showCorrectAfterSubmit: boolean
+  presentationOrder: 'shuffled' | 'fixed'
+}
+
+export type AnnotationShape = 'circle' | 'rectangle' | 'polygon'
+
+export type AnnotationRegion = {
+  id: string
+  shape: AnnotationShape
+  /**
+   * Shape-dependent coordinate payload, all normalized to [0, 1] relative
+   * to the image's natural dimensions:
+   *   circle    — [cx, cy, r]
+   *   rectangle — [x, y, w, h]
+   *   polygon   — [x0, y0, x1, y1, x2, y2, ...]
+   */
+  coords: number[]
+  label?: string
+}
+
+export interface AnnotationConfig {
+  prompt: string
+  imageUrl: string
+  regions: AnnotationRegion[]
+  mode: 'find_all' | 'find_one'
+  showRegionsAfterSubmit: boolean
+}
+
+export type ScenarioNodeType = 'narrative' | 'choice' | 'ending'
+export type ScenarioOutcome = 'positive' | 'neutral' | 'negative'
+
+export type ScenarioChoice = {
+  label: string
+  nextNodeId: string
+  isCorrect?: boolean
+}
+
+export type ScenarioNode = {
+  id: string
+  type: ScenarioNodeType
+  content: string
+  /** Narrative nodes advance to a single next node — same field, single entry. */
+  choices?: ScenarioChoice[]
+  outcome?: ScenarioOutcome
+}
+
+export interface ScenarioConfig {
+  startNodeId: string
+  nodes: ScenarioNode[]
+}
+
+// Fallback shape for exercise rows whose type doesn't yet have a builder.
+// Keeping it in the union also covers the `default: return {}` arm of
+// defaultConfigFor cleanly.
+export type EmptyConfig = Record<string, never>
 
 export type ExerciseConfig =
   | MatchingConfig
@@ -79,6 +142,7 @@ export type ExerciseConfig =
   | RankingConfig
   | AnnotationConfig
   | ScenarioConfig
+  | EmptyConfig
 
 export type Exercise = {
   id: string
@@ -133,6 +197,20 @@ export type WordCloudResponseShape = {
   words: string[]
 }
 
+export type RankingResponseShape = {
+  rankedOrder: string[]
+}
+
+export type AnnotationResponseShape = {
+  taps: { x: number; y: number; hitRegionId: string | null }[]
+}
+
+export type ScenarioResponseShape = {
+  path: string[]
+  choices: { nodeId: string; choiceIndex: number; choiceLabel: string }[]
+  finalOutcome: ScenarioOutcome | null
+}
+
 export type ExerciseResponse = {
   id: string
   training_id: string
@@ -171,6 +249,24 @@ export function isWordCloudExercise(
   return ex.type === 'word_cloud'
 }
 
+export function isRankingExercise(
+  ex: Exercise,
+): ex is Exercise & { config: RankingConfig } {
+  return ex.type === 'ranking'
+}
+
+export function isAnnotationExercise(
+  ex: Exercise,
+): ex is Exercise & { config: AnnotationConfig } {
+  return ex.type === 'annotation'
+}
+
+export function isScenarioExercise(
+  ex: Exercise,
+): ex is Exercise & { config: ScenarioConfig } {
+  return ex.type === 'scenario'
+}
+
 // ---------------------------------------------------------------------
 // Type-aware default config — used by the new-exercise builder.
 // ---------------------------------------------------------------------
@@ -199,6 +295,26 @@ export function defaultConfigFor(type: ExerciseType): ExerciseConfig {
         maxWordsPerParticipant: 3,
         caseSensitive: false,
         stopWords: [...DEFAULT_STOP_WORDS],
+      }
+    case 'ranking':
+      return {
+        prompt: '',
+        items: [],
+        showCorrectAfterSubmit: false,
+        presentationOrder: 'shuffled',
+      }
+    case 'annotation':
+      return {
+        prompt: '',
+        imageUrl: '',
+        regions: [],
+        mode: 'find_all',
+        showRegionsAfterSubmit: true,
+      }
+    case 'scenario':
+      return {
+        startNodeId: '',
+        nodes: [],
       }
     default:
       return {}
@@ -234,6 +350,9 @@ export const ENABLED_EXERCISE_TYPES: ExerciseType[] = [
   'quiz',
   'reflection',
   'word_cloud',
+  'ranking',
+  'annotation',
+  'scenario',
 ]
 
 // ---------------------------------------------------------------------

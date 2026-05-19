@@ -3,11 +3,14 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
+  type AnnotationConfig,
   type ExerciseConfig,
   type ExerciseType,
   type MatchingConfig,
   type QuizConfig,
+  type RankingConfig,
   type ReflectionConfig,
+  type ScenarioConfig,
   type WordCloudConfig,
 } from '@/lib/exercises'
 import { Button } from '@/components/ui/Button'
@@ -16,6 +19,9 @@ import { MatchingConfigEditor } from './editors/MatchingConfigEditor'
 import { QuizConfigEditor } from './editors/QuizConfigEditor'
 import { ReflectionConfigEditor } from './editors/ReflectionConfigEditor'
 import { WordCloudConfigEditor } from './editors/WordCloudConfigEditor'
+import { RankingConfigEditor } from './editors/RankingConfigEditor'
+import { AnnotationConfigEditor } from './editors/AnnotationConfigEditor'
+import { ScenarioConfigEditor } from './editors/ScenarioConfigEditor'
 
 type Props = {
   mode: 'create' | 'edit'
@@ -111,6 +117,24 @@ export function ExerciseEditor({ mode, type, exerciseId, initial }: Props) {
       {type === 'word_cloud' && (
         <WordCloudConfigEditor
           config={config as WordCloudConfig}
+          onChange={(next) => setConfig(next)}
+        />
+      )}
+      {type === 'ranking' && (
+        <RankingConfigEditor
+          config={config as RankingConfig}
+          onChange={(next) => setConfig(next)}
+        />
+      )}
+      {type === 'annotation' && (
+        <AnnotationConfigEditor
+          config={config as AnnotationConfig}
+          onChange={(next) => setConfig(next)}
+        />
+      )}
+      {type === 'scenario' && (
+        <ScenarioConfigEditor
+          config={config as ScenarioConfig}
           onChange={(next) => setConfig(next)}
         />
       )}

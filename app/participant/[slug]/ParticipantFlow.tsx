@@ -11,15 +11,21 @@ import type {
 } from '@/lib/types'
 import {
   EXERCISE_TYPE_LABELS,
+  isAnnotationExercise,
   isMatchingExercise,
   isQuizExercise,
+  isRankingExercise,
   isReflectionExercise,
+  isScenarioExercise,
   isWordCloudExercise,
+  type AnnotationConfig,
   type Exercise,
   type ExerciseType,
   type MatchingConfig,
   type QuizConfig,
+  type RankingConfig,
   type ReflectionConfig,
+  type ScenarioConfig,
   type TrainingExerciseWithDef,
   type WordCloudConfig,
 } from '@/lib/exercises'
@@ -30,6 +36,9 @@ import { MatchingPlayer } from './MatchingPlayer'
 import { QuizPlayer } from './QuizPlayer'
 import { ReflectionPlayer } from './ReflectionPlayer'
 import { WordCloudPlayer } from './WordCloudPlayer'
+import { RankingPlayer } from './RankingPlayer'
+import { AnnotationPlayer } from './AnnotationPlayer'
+import { ScenarioPlayer } from './ScenarioPlayer'
 import { SurveyForm } from './SurveyForm'
 import { ActivityHub, type HubActivity } from './ActivityHub'
 
@@ -72,8 +81,8 @@ const EXERCISE_BLURB: Record<ExerciseType, string> = {
   reflection: 'A short written reflection',
   word_cloud: 'Add words to the cloud',
   ranking: 'Rank in order',
-  annotation: 'Tap regions of an image',
-  scenario: 'A branching story',
+  annotation: 'Tap to identify the right spots',
+  scenario: 'A choose-your-own-adventure',
 }
 
 export function ParticipantFlow({
@@ -454,6 +463,36 @@ function renderStage(args: StageRenderArgs) {
           exercise={ex as Exercise & { config: WordCloudConfig }}
           onComplete={onDone}
           hold={driven}
+        />
+      )
+    }
+    if (isRankingExercise(ex)) {
+      return (
+        <RankingPlayer
+          training={training}
+          participant={participant}
+          exercise={ex as Exercise & { config: RankingConfig }}
+          onComplete={onDone}
+        />
+      )
+    }
+    if (isAnnotationExercise(ex)) {
+      return (
+        <AnnotationPlayer
+          training={training}
+          participant={participant}
+          exercise={ex as Exercise & { config: AnnotationConfig }}
+          onComplete={onDone}
+        />
+      )
+    }
+    if (isScenarioExercise(ex)) {
+      return (
+        <ScenarioPlayer
+          training={training}
+          participant={participant}
+          exercise={ex as Exercise & { config: ScenarioConfig }}
+          onComplete={onDone}
         />
       )
     }

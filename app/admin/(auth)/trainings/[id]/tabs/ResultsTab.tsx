@@ -23,6 +23,9 @@ import { IcebreakerTab } from './IcebreakerTab'
 import { QuizResults } from './results/QuizResults'
 import { ReflectionResults } from './results/ReflectionResults'
 import { WordCloudResults } from './results/WordCloudResults'
+import { RankingResults } from './results/RankingResults'
+import { AnnotationResults } from './results/AnnotationResults'
+import { ScenarioResults } from './results/ScenarioResults'
 
 const TYPE_TONE: Record<ExerciseType, string> = {
   matching: 'bg-domain-comm/15 text-domain-comm',
@@ -193,6 +196,36 @@ function PerExerciseResults({
   if (exercise.type === 'word_cloud') {
     return (
       <WordCloudResults
+        exercise={exercise}
+        responses={responses}
+        participants={participants}
+      />
+    )
+  }
+
+  if (exercise.type === 'ranking') {
+    return (
+      <RankingResults
+        exercise={exercise}
+        responses={responses}
+        participants={participants}
+      />
+    )
+  }
+
+  if (exercise.type === 'annotation') {
+    return (
+      <AnnotationResults
+        exercise={exercise}
+        responses={responses}
+        participants={participants}
+      />
+    )
+  }
+
+  if (exercise.type === 'scenario') {
+    return (
+      <ScenarioResults
         exercise={exercise}
         responses={responses}
         participants={participants}
