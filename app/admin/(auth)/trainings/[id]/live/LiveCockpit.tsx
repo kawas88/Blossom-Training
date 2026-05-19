@@ -68,53 +68,75 @@ export function LiveCockpit({
   }, [session.current_exercise_id, driven])
   const currentExercise = currentIndex >= 0 ? driven[currentIndex] : null
 
-  // Realtime: subscribe to session row + participants + responses.
+  // Realtime: subscribe to session row + participants + responses + responses-update.
+  //
+  // We deliberately split into separate channels per table, drop the
+  // `filter` option, and check training_id client-side. Multi-listener
+  // single-channel setups with `filter` were silently dropping the
+  // exercise_responses INSERT events in production. Separate channels
+  // also keeps each subscription's lifecycle independent — one slow
+  // subscribe doesn't block the others.
   useEffect(() => {
     const supabase = createClient()
-    const channel = supabase
-      .channel(`live-cockpit:${training.id}`)
+
+    const sessionCh = supabase
+      .channel(`cockpit-session-${training.id}`)
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'training_sessions',
-          filter: `training_id=eq.${training.id}`,
-        },
+        { event: '*', schema: 'public', table: 'training_sessions' },
         (payload) => {
           const next = payload.new as TrainingSession | null
-          if (next && next.id) setSession(next)
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'participants',
-          filter: `training_id=eq.${training.id}`,
-        },
-        (payload) => {
-          const p = payload.new as Participant
-          setParticipants((cur) => (cur.find((x) => x.id === p.id) ? cur : [...cur, p]))
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'exercise_responses',
-          filter: `training_id=eq.${training.id}`,
-        },
-        (payload) => {
-          const r = payload.new as ExerciseResponse
-          setResponses((cur) => (cur.find((x) => x.id === r.id) ? cur : [...cur, r]))
+          if (next?.training_id === training.id && next.id) setSession(next)
         },
       )
       .subscribe()
+
+    const participantsCh = supabase
+      .channel(`cockpit-participants-${training.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'participants' },
+        (payload) => {
+          const p = payload.new as Participant
+          if (p?.training_id !== training.id) return
+          setParticipants((cur) => (cur.find((x) => x.id === p.id) ? cur : [...cur, p]))
+        },
+      )
+      .subscribe()
+
+    const responsesCh = supabase
+      .channel(`cockpit-responses-${training.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'exercise_responses' },
+        (payload) => {
+          const r = payload.new as ExerciseResponse
+          if (r?.training_id !== training.id) return
+          setResponses((cur) => (cur.find((x) => x.id === r.id) ? cur : [...cur, r]))
+        },
+      )
+      .on(
+        // Word Cloud appends to an existing response row (one row per
+        // participant, words[] grows). Without an UPDATE listener the
+        // cockpit would miss every word past the first.
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'exercise_responses' },
+        (payload) => {
+          const r = payload.new as ExerciseResponse
+          if (r?.training_id !== training.id) return
+          setResponses((cur) =>
+            cur.some((x) => x.id === r.id)
+              ? cur.map((x) => (x.id === r.id ? r : x))
+              : [...cur, r],
+          )
+        },
+      )
+      .subscribe()
+
     return () => {
-      supabase.removeChannel(channel)
+      supabase.removeChannel(sessionCh)
+      supabase.removeChannel(participantsCh)
+      supabase.removeChannel(responsesCh)
     }
   }, [training.id])
 

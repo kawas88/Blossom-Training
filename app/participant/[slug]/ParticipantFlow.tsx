@@ -115,23 +115,23 @@ export function ParticipantFlow({
 
   const hasSurvey = !!survey && questions.length > 0
 
-  // Realtime subscription to the session row — drives the trainer-paced flow.
+  // Realtime subscription to the session row — drives the trainer-paced
+  // flow. We drop the postgres_changes `filter` option and gate by
+  // training_id client-side; with the `filter` set, the Wrap up event
+  // wasn't reaching participants reliably and they got stuck on the
+  // exercise screen. Hyphenated channel name (no colon) avoids a related
+  // collision class.
   useEffect(() => {
     if (!initialSession) return
     const supabase = createClient()
     const channel = supabase
-      .channel(`participant-session:${training.id}`)
+      .channel(`participant-session-${training.id}`)
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'training_sessions',
-          filter: `training_id=eq.${training.id}`,
-        },
+        { event: '*', schema: 'public', table: 'training_sessions' },
         (payload) => {
           const next = payload.new as TrainingSession | null
-          if (next && next.id) setSession(next)
+          if (next?.training_id === training.id && next.id) setSession(next)
         },
       )
       .subscribe()

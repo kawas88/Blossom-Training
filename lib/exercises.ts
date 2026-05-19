@@ -65,6 +65,7 @@ export interface WordCloudConfig {
   allowMultiple: boolean
   caseSensitive: boolean
   stopWords: string[]
+  maxWordsPerParticipant?: number
 }
 export type RankingConfig = Record<string, never>
 export type AnnotationConfig = Record<string, never>
@@ -194,7 +195,8 @@ export function defaultConfigFor(type: ExerciseType): ExerciseConfig {
       return {
         prompt: '',
         maxLength: 30,
-        allowMultiple: false,
+        allowMultiple: true,
+        maxWordsPerParticipant: 3,
         caseSensitive: false,
         stopWords: [...DEFAULT_STOP_WORDS],
       }

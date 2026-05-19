@@ -115,13 +115,18 @@ export async function POST(req: Request) {
       }
       responsePayload = { text, aiAnalysis }
     } else if (isWordCloudExercise(exercise)) {
-      const cast = rawResponse as WordCloudResponseShape
-      const rawWords = Array.isArray(cast?.words) ? cast.words : []
-      const cleaned = normalizeWords(rawWords, exercise.config)
-      if (cleaned.length === 0) {
-        return NextResponse.json({ error: 'No valid words to record.' }, { status: 400 })
-      }
-      responsePayload = { words: cleaned }
+      // Word Cloud has its own existing-row policy: when allowMultiple is
+      // on, additional submissions append to the participant's words array
+      // up to maxWordsPerParticipant. Return early so we don't hit the
+      // generic 409-on-duplicate path below.
+      return await handleWordCloudSubmission(
+        supabase,
+        exercise.config,
+        trainingId,
+        exerciseId,
+        participantId,
+        rawResponse as WordCloudResponseShape,
+      )
     } else {
       return NextResponse.json(
         { error: `Exercise type "${exercise.type}" is not playable yet` },
@@ -161,6 +166,108 @@ export async function POST(req: Request) {
     console.error('exercises/respond error', e)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
+}
+
+// ---------------------------------------------------------------------
+// Word Cloud submission — special-cases the unique-per-participant rule
+// so multi-word participants can submit incrementally up to the
+// per-participant cap.
+// ---------------------------------------------------------------------
+async function handleWordCloudSubmission(
+  supabase: ReturnType<typeof createAdminClient>,
+  config: WordCloudConfig,
+  trainingId: string,
+  exerciseId: string,
+  participantId: string,
+  body: WordCloudResponseShape,
+): Promise<NextResponse> {
+  const rawWords = Array.isArray(body?.words) ? body.words : []
+  const cleaned = normalizeWords(rawWords, config)
+  if (cleaned.length === 0) {
+    return NextResponse.json({ error: 'No valid words to record.' }, { status: 400 })
+  }
+
+  const allowMultiple = !!config.allowMultiple
+  const max = allowMultiple
+    ? Math.max(1, Math.min(10, Number(config.maxWordsPerParticipant) || 3))
+    : 1
+
+  const { data: existing } = await supabase
+    .from('exercise_responses')
+    .select('id, response')
+    .eq('exercise_id', exerciseId)
+    .eq('participant_id', participantId)
+    .maybeSingle()
+
+  if (existing) {
+    if (!allowMultiple) {
+      return NextResponse.json(
+        {
+          error: 'already_responded',
+          message: 'You have already submitted a word.',
+        },
+        { status: 409 },
+      )
+    }
+    const prior =
+      ((existing.response as WordCloudResponseShape | null)?.words ?? []).filter(
+        (w) => typeof w === 'string',
+      )
+    if (prior.length >= max) {
+      return NextResponse.json(
+        {
+          error: 'max_words',
+          message: `You've already submitted ${max} word${max === 1 ? '' : 's'} — that's the limit.`,
+          words: prior,
+          maxWords: max,
+        },
+        { status: 409 },
+      )
+    }
+    // Append, dedupe, respect cap
+    const merged: string[] = [...prior]
+    for (const w of cleaned) {
+      if (merged.length >= max) break
+      if (!merged.includes(w)) merged.push(w)
+    }
+    const { error } = await supabase
+      .from('exercise_responses')
+      .update({
+        response: { words: merged },
+        completed_at: new Date().toISOString(),
+      })
+      .eq('id', existing.id)
+    if (error) {
+      console.error('word_cloud append', error)
+      return NextResponse.json({ error: 'Could not save response' }, { status: 500 })
+    }
+    return NextResponse.json({
+      ok: true,
+      words: merged,
+      maxWords: max,
+      atLimit: merged.length >= max,
+    })
+  }
+
+  // First submission for this participant
+  const initial = cleaned.slice(0, max)
+  const { error } = await supabase.from('exercise_responses').insert({
+    training_id: trainingId,
+    exercise_id: exerciseId,
+    participant_id: participantId,
+    response: { words: initial },
+    score: null,
+  })
+  if (error) {
+    console.error('word_cloud insert', error)
+    return NextResponse.json({ error: 'Could not save response' }, { status: 500 })
+  }
+  return NextResponse.json({
+    ok: true,
+    words: initial,
+    maxWords: max,
+    atLimit: initial.length >= max,
+  })
 }
 
 // ---------------------------------------------------------------------

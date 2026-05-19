@@ -73,10 +73,29 @@ export function WordCloudConfigEditor({ config, onChange }: Props) {
               Allow participants to submit multiple words
             </span>
             <span className="block text-xs text-ink/60">
-              Off by default — one word per person keeps the cloud focused.
+              Letting people share a few quick words usually surfaces richer themes than a single word per person.
             </span>
           </span>
         </label>
+        {config.allowMultiple && (
+          <Input
+            label="Maximum words per participant"
+            type="number"
+            min={1}
+            max={10}
+            value={config.maxWordsPerParticipant ?? 3}
+            onChange={(e) =>
+              onChange({
+                ...config,
+                maxWordsPerParticipant: Math.max(
+                  1,
+                  Math.min(10, Number(e.target.value) || 3),
+                ),
+              })
+            }
+            hint="Each participant can submit up to this many words across one or more turns."
+          />
+        )}
         <label className="flex items-start gap-3 cursor-pointer">
           <input
             type="checkbox"
