@@ -144,6 +144,27 @@ export type IcebreakerMatchingResponse = {
   created_at: string
 }
 
+export type QuestionStatus = 'pending' | 'answered' | 'hidden'
+
+export type TrainingQuestion = {
+  id: string
+  training_id: string
+  participant_id: string | null
+  display_name: string | null
+  question: string
+  status: QuestionStatus
+  upvotes: number
+  created_at: string
+  answered_at: string | null
+}
+
+export type TrainingQuestionVote = {
+  id: string
+  question_id: string
+  participant_id: string
+  created_at: string
+}
+
 export type IcebreakerPromptResponse = {
   id: string
   participant_id: string
