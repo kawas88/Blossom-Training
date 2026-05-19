@@ -1,7 +1,9 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { Check } from 'lucide-react'
 import type {
+  Training,
   Participant,
   IcebreakerMatchingResponse,
   IcebreakerPromptResponse,
@@ -11,8 +13,10 @@ import type {
   SurveyResponse,
 } from '@/lib/types'
 import { formatDateTime } from '@/lib/utils'
+import { JoinShareCard } from '../JoinShareCard'
 
 type Props = {
+  training: Training
   participants: Participant[]
   icebreaker: Icebreaker | null
   survey: Survey | null
@@ -23,6 +27,7 @@ type Props = {
 }
 
 export function OverviewTab({
+  training,
   participants,
   icebreaker,
   survey,
@@ -31,6 +36,13 @@ export function OverviewTab({
   promptResponses,
   surveyResponses,
 }: Props) {
+  // The join URL needs window.location.origin in the browser. Render a
+  // placeholder during hydration so the QR doesn't double-paint.
+  const [origin, setOrigin] = useState<string>('')
+  useEffect(() => {
+    setOrigin(window.location.origin)
+  }, [])
+  const joinUrl = origin ? `${origin}/?code=${training.join_code}` : ''
   const total = participants.length
   const iceDone = participants.filter((p) => !!p.icebreaker_completed_at).length
   const surveyDone = participants.filter((p) => !!p.survey_completed_at).length
@@ -52,6 +64,15 @@ export function OverviewTab({
 
   return (
     <div className="space-y-6">
+      {joinUrl && (
+        <JoinShareCard
+          joinCode={training.join_code}
+          joinUrl={joinUrl}
+          slug={training.slug}
+          status={training.status as 'draft' | 'live' | 'closed'}
+        />
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
         <Stat label="Joined" value={total} sub="participants" />
         <Stat
