@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { LogOut } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
 
 export function LogoutButton({
@@ -32,7 +31,7 @@ export function LogoutButton({
       <button
         onClick={logout}
         disabled={busy}
-        className="flex items-center gap-1.5 text-xs text-ink/70 hover:text-ink"
+        className="flex items-center gap-1.5 text-xs font-medium text-white/80 hover:text-white"
         aria-label="Log out"
       >
         <LogOut className="h-3.5 w-3.5" />
@@ -41,16 +40,18 @@ export function LogoutButton({
     )
   }
 
+  // Sits inside the deep-purple sidebar; needs to read against that surface.
   return (
-    <Button
-      variant="secondary"
-      size="sm"
+    <button
       onClick={logout}
       disabled={busy}
-      className={cn(className)}
+      className={cn(
+        'inline-flex items-center justify-center gap-2 rounded-full border border-white/25 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition-colors disabled:opacity-50',
+        className,
+      )}
     >
       <LogOut className="h-3.5 w-3.5" />
       Log out
-    </Button>
+    </button>
   )
 }

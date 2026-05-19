@@ -8,28 +8,62 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: '#0F1419',
-        cream: '#FAF7F2',
-        sage: '#1D6E52',
-        terracotta: '#C9624A',
-        sand: '#E8DDC9',
-        graphite: '#1A1A1A',
-        success: '#10B981',
-        error: '#EF4444',
-        warn: '#F59E0B',
-        'domain-comm': '#3B82F6',
-        'domain-gross': '#10B981',
-        'domain-fine': '#F59E0B',
-        'domain-problem': '#8B5CF6',
-        'domain-social': '#FB7185',
+        // -----------------------------------------------------------------
+        // New Trainzy palette (canonical names)
+        // -----------------------------------------------------------------
+        blush: '#fff2f0',         // primary background
+        'blush-deep': '#ffe4dd',  // soft card background, hover fill
+        deep: '#1d0d2a',          // primary text, headings
+        'deep-soft': '#4a3559',   // secondary text
+        wisteria: '#b497de',      // brand accent
+        sunglow: '#f8d278',       // secondary accent
+        pink: '#ff6b9d',          // hot pink — destructive / vibrant
+        orange: '#ff7a3c',
+        mint: '#7fe4c3',
+        blue: '#6b88f0',
+        mauve: '#6e5a6f',
+        line: 'rgba(29, 13, 42, 0.12)', // hairline borders
+
+        // -----------------------------------------------------------------
+        // Legacy token aliases — keep so existing className usage in 80+
+        // files renders as the new brand without per-file edits. New code
+        // should use the canonical names above.
+        // -----------------------------------------------------------------
+        ink: '#1d0d2a',           // → deep
+        cream: '#fff2f0',         // → blush
+        sage: '#b497de',          // → wisteria
+        sand: '#ffe4dd',          // → blush-deep
+        terracotta: '#ff6b9d',    // → pink
+        graphite: '#1d0d2a',
+
+        // Status / semantic
+        success: '#7fe4c3',
+        error: '#ff6b9d',
+        warn: '#f8d278',
+
+        // ASQ-3 domain dots — recoloured against the new palette while
+        // keeping each domain visually distinct.
+        'domain-comm': '#6b88f0',
+        'domain-gross': '#7fe4c3',
+        'domain-fine': '#f8d278',
+        'domain-problem': '#b497de',
+        'domain-social': '#ff6b9d',
       },
       fontFamily: {
-        serif: ['var(--font-dm-serif)', 'Georgia', 'serif'],
-        sans: ['var(--font-dm-sans)', 'system-ui', 'sans-serif'],
-        mono: ['var(--font-space-mono)', 'ui-monospace', 'monospace'],
+        // Single product family. The legacy class names (font-serif, font-mono)
+        // map onto Montserrat too so existing usage renders correctly
+        // without touching every file.
+        sans: ['var(--font-montserrat)', 'system-ui', 'sans-serif'],
+        serif: ['var(--font-montserrat)', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-montserrat)', 'system-ui', 'sans-serif'],
+        display: ['var(--font-montserrat)', 'system-ui', 'sans-serif'],
       },
       letterSpacing: {
         tightish: '-0.02em',
+        eyebrow: '0.08em',
+      },
+      borderRadius: {
+        '4xl': '32px',
       },
       keyframes: {
         'fade-in': {
@@ -55,6 +89,14 @@ const config: Config = {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.6' },
         },
+        wiggle: {
+          '0%, 100%': { transform: 'rotate(-3deg)' },
+          '50%': { transform: 'rotate(3deg)' },
+        },
+        float: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-8px)' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -62,17 +104,13 @@ const config: Config = {
         'scale-in': 'scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
         shake: 'shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97)',
         'pulse-soft': 'pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        wiggle: 'wiggle 3s ease-in-out infinite',
+        float: 'float 4s ease-in-out infinite',
       },
       boxShadow: {
-        soft: '0 1px 2px rgba(15, 20, 25, 0.04), 0 4px 16px rgba(15, 20, 25, 0.04)',
-        card: '0 1px 3px rgba(15, 20, 25, 0.06), 0 8px 24px rgba(15, 20, 25, 0.04)',
-      },
-      backgroundImage: {
-        'paper-texture':
-          'radial-gradient(circle, rgba(15,20,25,0.04) 1px, transparent 1px)',
-      },
-      backgroundSize: {
-        paper: '24px 24px',
+        soft: '0 1px 2px rgba(29, 13, 42, 0.04), 0 4px 16px rgba(29, 13, 42, 0.04)',
+        card: '0 1px 3px rgba(29, 13, 42, 0.06), 0 8px 24px rgba(29, 13, 42, 0.04)',
+        glow: '0 8px 32px rgba(180, 151, 222, 0.35)',
       },
     },
   },

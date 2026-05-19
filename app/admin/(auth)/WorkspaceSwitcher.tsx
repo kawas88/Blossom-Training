@@ -57,17 +57,17 @@ export function WorkspaceSwitcher({ active, memberships }: Props) {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between gap-2 rounded-xl border border-ink/10 bg-white/60 hover:bg-white px-3 py-2.5 text-left transition-colors"
+        className="w-full flex items-center justify-between gap-2 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 px-3 py-2.5 text-left transition-colors"
         aria-haspopup="listbox"
         aria-expanded={open}
       >
         <div className="min-w-0">
-          <p className="text-[10px] font-mono tracking-[0.2em] uppercase text-ink/50">
+          <p className="text-[10px] font-mono tracking-eyebrow uppercase text-white/55">
             Workspace
           </p>
-          <p className="truncate text-sm font-medium text-ink">{active.name}</p>
+          <p className="truncate text-sm font-semibold text-white">{active.name}</p>
         </div>
-        <ChevronsUpDown className="h-4 w-4 text-ink/40 shrink-0" />
+        <ChevronsUpDown className="h-4 w-4 text-white/60 shrink-0" />
       </button>
 
       {open && (
@@ -92,7 +92,7 @@ export function WorkspaceSwitcher({ active, memberships }: Props) {
                         {role}
                       </p>
                     </div>
-                    {isActive && <Check className="h-4 w-4 text-sage shrink-0" />}
+                    {isActive && <Check className="h-4 w-4 text-wisteria shrink-0" />}
                   </button>
                 </li>
               )

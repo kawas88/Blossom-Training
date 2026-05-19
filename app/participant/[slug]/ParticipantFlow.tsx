@@ -65,16 +65,6 @@ type Props = {
   initialSession: TrainingSession | null
 }
 
-const EXERCISE_ICON: Record<ExerciseType, 'sparkles' | 'clipboard'> = {
-  matching: 'sparkles',
-  quiz: 'sparkles',
-  reflection: 'clipboard',
-  word_cloud: 'sparkles',
-  ranking: 'sparkles',
-  annotation: 'sparkles',
-  scenario: 'sparkles',
-}
-
 const EXERCISE_BLURB: Record<ExerciseType, string> = {
   matching: 'Match items to their groups',
   quiz: 'A few multiple-choice questions',
@@ -217,7 +207,7 @@ export function ParticipantFlow({
     description: ex.description?.trim() || EXERCISE_BLURB[ex.type],
     completed: completed.has(ex.id),
     inProgress: startedInSession.has(ex.id) && !completed.has(ex.id),
-    icon: EXERCISE_ICON[ex.type],
+    kind: ex.type,
     onTap: () => tapExercise(ex.id),
   }))
   if (hasSurvey) {
@@ -227,7 +217,7 @@ export function ParticipantFlow({
       description: survey?.description?.trim() || 'Share your thoughts',
       completed: surveyCompleted,
       inProgress: surveyStartedInSession && !surveyCompleted,
-      icon: 'clipboard',
+      kind: 'survey',
       onTap: tapSurvey,
     })
   }

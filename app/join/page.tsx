@@ -57,7 +57,7 @@ export default async function JoinPage({
   }
 
   return (
-    <main className="relative min-h-screen flex flex-col">
+    <main className="relative min-h-screen flex flex-col bg-blush text-deep overflow-hidden">
       <Decoration />
       <div className="flex-1 px-6 py-12 md:py-20">
         <div className="mx-auto max-w-md">
@@ -89,7 +89,7 @@ export default async function JoinPage({
 
 function NotFoundShell({ code }: { code: string }) {
   return (
-    <main className="relative min-h-screen flex flex-col">
+    <main className="relative min-h-screen flex flex-col bg-blush text-deep overflow-hidden">
       <Decoration />
       <div className="flex-1 px-6 py-20 flex items-center">
         <div className="mx-auto max-w-md w-full">
@@ -121,7 +121,7 @@ function StatusShell({
   pill: 'draft' | 'closed'
 }) {
   return (
-    <main className="relative min-h-screen flex flex-col">
+    <main className="relative min-h-screen flex flex-col bg-blush text-deep overflow-hidden">
       <Decoration />
       <div className="flex-1 px-6 py-20 flex items-center">
         <div className="mx-auto max-w-md w-full">

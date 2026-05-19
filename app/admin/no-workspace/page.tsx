@@ -14,15 +14,15 @@ export default async function NoWorkspacePage() {
   if (workspaces.length > 0) redirect('/admin')
 
   return (
-    <main className="relative min-h-screen flex flex-col">
+    <main className="relative min-h-screen flex flex-col bg-blush text-deep overflow-hidden">
       <Decoration />
-      <div className="flex-1 px-6 py-20 flex items-center">
+      <div className="relative z-10 flex-1 px-6 py-20 flex items-center">
         <div className="mx-auto max-w-md w-full text-center">
-          <p className="font-mono text-xs tracking-[0.2em] uppercase text-ink/60">
+          <span className="inline-flex items-center gap-2 rounded-full bg-wisteria/15 text-wisteria px-4 py-1.5 text-xs font-semibold tracking-eyebrow uppercase">
             No workspace
-          </p>
-          <h1 className="mt-3 font-serif text-4xl md:text-5xl tracking-tightish text-ink leading-tight text-balance">
-            You&rsquo;re not in any <span className="italic-sage">workspace yet.</span>
+          </span>
+          <h1 className="mt-5 font-serif text-4xl md:text-5xl font-extrabold tracking-tightish text-deep leading-tight text-balance">
+            You&rsquo;re not in any <span className="italic-wisteria">workspace yet.</span>
           </h1>
           <p className="mt-4 text-ink/70 text-balance">
             Ask a teammate to invite you, or start your own.

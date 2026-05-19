@@ -2,38 +2,95 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =====================================================================
+   Trainzy brand foundation — CSS custom properties + base typography.
+   The palette is mirrored in tailwind.config.ts; this block exists so
+   raw CSS (and the few inline-style fallbacks) can reference the same
+   tokens.
+   =================================================================== */
 :root {
   color-scheme: light;
+
+  --blush: #fff2f0;
+  --blush-deep: #ffe4dd;
+  --deep: #1d0d2a;
+  --deep-soft: #4a3559;
+  --deep-faint: rgba(29, 13, 42, 0.6);
+  --line: rgba(29, 13, 42, 0.12);
+
+  --wisteria: #b497de;
+  --sunglow: #f8d278;
+  --pink: #ff6b9d;
+  --orange: #ff7a3c;
+  --mint: #7fe4c3;
+  --blue: #6b88f0;
+  --mauve: #6e5a6f;
+
+  --success: var(--mint);
+  --warning: var(--sunglow);
+  --danger: var(--pink);
 }
 
 html,
 body {
-  background: #FAF7F2;
-  color: #0F1419;
+  background: var(--blush);
+  color: var(--deep);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background-image: radial-gradient(circle, rgba(15, 20, 25, 0.04) 1px, transparent 1px);
-  background-size: 24px 24px;
-  background-attachment: fixed;
-  font-family: var(--font-dm-sans), system-ui, sans-serif;
+  /* Clean blush surface — paper texture is gone in the new brand. */
+  background-image: none;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 500;
+  letter-spacing: 0;
 }
 
 h1,
 h2,
 h3,
 h4 {
-  font-family: var(--font-dm-serif), Georgia, serif;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 800;
   letter-spacing: -0.02em;
+}
+
+h5,
+h6 {
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Eyebrow / label utility: uppercase, semibold, wider tracking. The
+   legacy `font-mono` class is used everywhere for eyebrow labels; we
+   bump weight and tracking here so it lands with the new look. */
+.eyebrow,
+.font-mono {
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+/* Headlines via Tailwind's font-serif alias also bump to ExtraBold. */
+.font-serif {
+  font-weight: 800;
 }
 
 .text-balance {
   text-wrap: balance;
 }
 
-/* Custom scrollbar — subtle */
+/* Brand-accent italic emphasis — class name kept (`italic-sage`) for
+   backwards compatibility, but renders wisteria now. */
+.italic-sage,
+.italic-wisteria {
+  font-style: italic;
+  color: var(--wisteria);
+  font-weight: 800;
+}
+
+/* Custom scrollbar — themed to the new palette */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -42,18 +99,24 @@ h4 {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(15, 20, 25, 0.15);
+  background-color: rgba(29, 13, 42, 0.18);
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(15, 20, 25, 0.3);
+  background-color: rgba(29, 13, 42, 0.32);
   background-clip: content-box;
 }
 
-/* Editorial italic accent helper */
-.italic-sage {
-  font-style: italic;
-  color: #1D6E52;
+/* Selection */
+::selection {
+  background: rgba(180, 151, 222, 0.35);
+  color: var(--deep);
+}
+
+/* Photography helper — rounded organic crop with asymmetric corner */
+.brand-photo {
+  border-radius: 28px 28px 64px 28px;
+  box-shadow: 0 24px 48px rgba(180, 151, 222, 0.25);
 }

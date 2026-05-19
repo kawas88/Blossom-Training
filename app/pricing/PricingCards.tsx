@@ -72,24 +72,24 @@ export function PricingCards({
     <div>
       <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
         {/* Interval toggle */}
-        <div className="inline-flex rounded-full bg-white border border-ink/15 p-1">
+        <div className="inline-flex rounded-full bg-white border-[1.5px] border-line p-1">
           {(['monthly', 'annual'] as BillingInterval[]).map((v) => (
             <button
               key={v}
               onClick={() => setInterval(v)}
               className={cn(
-                'rounded-full px-4 py-1.5 text-sm font-medium transition-all',
+                'rounded-full px-4 py-1.5 text-sm font-semibold transition-all',
                 interval === v
-                  ? 'bg-ink text-cream'
-                  : 'text-ink/70 hover:text-ink',
+                  ? 'bg-wisteria text-white'
+                  : 'text-deep/70 hover:text-deep',
               )}
             >
               {v === 'monthly' ? 'Monthly' : 'Annual'}
               {v === 'annual' && (
                 <span
                   className={cn(
-                    'ml-2 text-[10px] font-mono uppercase tracking-wider',
-                    interval === v ? 'text-cream/70' : 'text-sage',
+                    'ml-2 text-[10px] font-mono uppercase tracking-eyebrow',
+                    interval === v ? 'text-white/80' : 'text-wisteria',
                   )}
                 >
                   save 17%
@@ -99,14 +99,14 @@ export function PricingCards({
           ))}
         </div>
         {/* Currency toggle */}
-        <div className="inline-flex rounded-full bg-white border border-ink/15 p-1 text-xs font-mono">
+        <div className="inline-flex rounded-full bg-white border-[1.5px] border-line p-1 text-xs font-mono">
           {(['AED', 'USD'] as BillingCurrency[]).map((v) => (
             <button
               key={v}
               onClick={() => setCurrency(v)}
               className={cn(
-                'rounded-full px-3 py-1 transition-all',
-                currency === v ? 'bg-ink text-cream' : 'text-ink/60 hover:text-ink',
+                'rounded-full px-3 py-1 font-semibold transition-all',
+                currency === v ? 'bg-wisteria text-white' : 'text-deep/60 hover:text-deep',
               )}
             >
               {v}
@@ -222,90 +222,59 @@ function PlanCard({
   return (
     <div
       className={cn(
-        'rounded-2xl p-7 md:p-8 flex flex-col',
+        'relative rounded-3xl p-7 md:p-8 flex flex-col',
         accent
-          ? 'bg-ink text-cream border border-ink'
-          : 'bg-white border border-ink/10',
+          ? 'bg-white border-2 border-wisteria shadow-glow'
+          : 'bg-white border-[1.5px] border-line',
       )}
     >
+      {accent && (
+        <span className="absolute -top-3 left-7 inline-flex items-center rounded-full bg-wisteria text-white px-3 py-1 text-[10px] font-semibold tracking-eyebrow uppercase">
+          Most popular
+        </span>
+      )}
       <p
         className={cn(
-          'font-mono text-[10px] tracking-[0.2em] uppercase',
-          accent ? 'text-cream/70' : 'text-ink/60',
+          'font-mono text-[10px] tracking-eyebrow uppercase',
+          'text-deep/60',
         )}
       >
         {labels.eyebrow}
       </p>
-      <h3
-        className={cn(
-          'mt-2 font-serif text-3xl md:text-4xl tracking-tightish',
-          accent ? 'text-cream' : 'text-ink',
-        )}
-      >
+      <h3 className="mt-2 font-serif text-3xl md:text-4xl font-extrabold tracking-tightish text-deep">
         {labels.title}
       </h3>
 
       <div className="mt-4 flex items-baseline gap-2">
-        <span
-          className={cn(
-            'font-mono text-[10px] uppercase tracking-wider',
-            accent ? 'text-cream/60' : 'text-ink/50',
-          )}
-        >
+        <span className="font-mono text-[10px] uppercase tracking-eyebrow text-deep/50">
           {currency}
         </span>
-        <span
-          className={cn(
-            'font-serif text-5xl tracking-tightish',
-            accent ? 'text-cream' : 'text-ink',
-          )}
-        >
+        <span className="font-serif text-5xl font-extrabold tracking-tightish text-deep">
           {formattedAmount}
         </span>
-        <span
-          className={cn(
-            'text-sm',
-            accent ? 'text-cream/70' : 'text-ink/60',
-          )}
-        >
+        <span className="text-sm text-deep/60">
           / {interval === 'monthly' ? 'month' : 'year'}
         </span>
       </div>
       {interval === 'annual' && (
-        <p
-          className={cn(
-            'mt-1 text-xs font-mono uppercase tracking-wider',
-            accent ? 'text-cream/80' : 'text-sage',
-          )}
-        >
+        <p className="mt-1 text-xs font-mono uppercase tracking-eyebrow text-wisteria">
           ✦ Save 17% vs monthly
         </p>
       )}
 
       <ul className="mt-6 space-y-2.5 flex-1">
         {features.highlight && (
-          <li
-            className={cn(
-              'text-sm font-medium',
-              accent ? 'text-cream' : 'text-ink',
-            )}
-          >
+          <li className="text-sm font-semibold text-deep">
             {features.highlight}
           </li>
         )}
         {features.items.map((f) => (
           <li
             key={f}
-            className={cn(
-              'flex items-start gap-2 text-sm',
-              accent ? 'text-cream/90' : 'text-ink/80',
-            )}
+            className="flex items-start gap-2 text-sm text-deep/80"
           >
             <Check
-              className={cn(
-                'h-4 w-4 shrink-0 mt-0.5',
-                accent ? 'text-sage' : 'text-sage',
-              )}
+              className="h-4 w-4 shrink-0 mt-0.5 text-wisteria"
               strokeWidth={2.5}
             />
             <span>{f}</span>
@@ -314,14 +283,7 @@ function PlanCard({
       </ul>
 
       {duplicate && (
-        <div
-          className={cn(
-            'mt-4 rounded-xl px-3 py-2.5 text-xs flex items-start gap-2',
-            accent
-              ? 'bg-cream/15 border border-cream/30 text-cream'
-              : 'bg-warn/10 border border-warn/30 text-ink',
-          )}
-        >
+        <div className="mt-4 rounded-2xl px-3 py-2.5 text-xs flex items-start gap-2 bg-sunglow/20 border border-sunglow/50 text-deep">
           <div className="flex-1 min-w-0">
             <p>
               You already have an active subscription. Refresh to see your current plan.
@@ -329,19 +291,14 @@ function PlanCard({
           </div>
           <button
             onClick={() => window.location.reload()}
-            className={cn(
-              'shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium',
-              accent
-                ? 'bg-cream text-ink hover:bg-sand'
-                : 'bg-ink text-cream hover:bg-sage',
-            )}
+            className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold bg-deep text-white hover:bg-deep/90"
           >
             Refresh
           </button>
         </div>
       )}
       {error && !duplicate && (
-        <div className="mt-4 rounded-xl bg-error/10 border border-error/20 px-3 py-2 text-xs text-error">
+        <div className="mt-4 rounded-2xl bg-pink/10 border border-pink/25 px-3 py-2 text-xs text-pink">
           {error}
         </div>
       )}
@@ -351,10 +308,10 @@ function PlanCard({
           onClick={handleClick}
           disabled={busy || ctaState.kind === 'current'}
           className={cn(
-            'inline-flex items-center justify-center gap-2 w-full rounded-full px-6 py-3 text-sm font-medium transition-all active:scale-[0.98] disabled:cursor-not-allowed',
+            'inline-flex items-center justify-center gap-2 w-full rounded-full px-6 py-3 text-sm font-semibold transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60',
             accent
-              ? 'bg-cream text-ink hover:bg-sand disabled:opacity-60'
-              : 'bg-ink text-cream hover:bg-sage disabled:opacity-60',
+              ? 'bg-wisteria text-white hover:bg-wisteria/90'
+              : 'bg-deep text-white hover:bg-deep/90',
           )}
         >
           {busy ? (
@@ -366,12 +323,7 @@ function PlanCard({
             ctaState.label
           )}
         </button>
-        <p
-          className={cn(
-            'mt-3 text-center text-xs',
-            accent ? 'text-cream/70' : 'text-ink/55',
-          )}
-        >
+        <p className="mt-3 text-center text-xs text-deep/55">
           No credit card required to start.
         </p>
       </div>

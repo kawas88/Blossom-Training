@@ -16,9 +16,9 @@ export default async function SetupLayout({
   if (!session) redirect('/admin/login')
 
   return (
-    <main className="relative min-h-screen flex flex-col">
+    <main className="relative min-h-screen flex flex-col bg-blush text-deep overflow-hidden">
       <Decoration />
-      <div className="flex-1">{children}</div>
+      <div className="relative z-10 flex-1">{children}</div>
     </main>
   )
 }

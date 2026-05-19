@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAdminSession } from '@/lib/auth'
 import { Decoration } from '@/components/ui/Decoration'
+import { Logo } from '@/components/Logo'
 import { Pill } from '@/components/ui/Pill'
 import { Button } from '@/components/ui/Button'
 import { AcceptForm } from './AcceptForm'
@@ -148,19 +149,16 @@ export default async function InvitePage({ params }: { params: Params }) {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="relative min-h-screen flex flex-col">
+    <main className="relative min-h-screen flex flex-col bg-blush text-deep overflow-hidden">
       <Decoration />
-      <header className="px-6 md:px-10 pt-8">
-        <Link
-          href="/"
-          className="font-mono text-xs tracking-wider uppercase text-ink/70"
-        >
-          ← Trainzy
+      <header className="relative z-10 px-6 md:px-10 pt-8">
+        <Link href="/" className="inline-flex items-center gap-2">
+          <Logo height={28} />
         </Link>
       </header>
-      <div className="flex-1 px-6 py-16 flex items-center">
+      <div className="relative z-10 flex-1 px-6 py-16 flex items-center">
         <div className="mx-auto max-w-md w-full">
-          <div className="rounded-2xl bg-white border border-ink/10 shadow-card p-6 md:p-8">
+          <div className="rounded-3xl bg-white border-[1.5px] border-line shadow-card p-6 md:p-8">
             {children}
           </div>
         </div>

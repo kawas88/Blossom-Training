@@ -1,6 +1,18 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
 
+// Trainzy form fields: rounded-2xl (16px corners), 1.5px deep-tinted line by
+// default, 2px wisteria border on focus (no ring halo), white surface, deep
+// text with faint placeholder. Matches the brand spec for inputs/textareas/
+// selects so the whole form system reads as one cohesive family.
+const FIELD_BASE =
+  'w-full rounded-2xl bg-white px-4 py-3 text-base text-deep transition-all ' +
+  'border-[1.5px] border-line ' +
+  'placeholder:text-deep/40 ' +
+  'focus:outline-none focus:border-wisteria focus:border-2 focus:px-[15px] focus:py-[11px]'
+
+const FIELD_ERROR = 'border-pink focus:border-pink'
+
 type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   label?: string
   hint?: string
@@ -17,7 +29,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Inp
       {label && (
         <label
           htmlFor={inputId}
-          className="mb-1.5 block text-sm font-medium text-ink"
+          className="mb-1.5 block text-sm font-semibold text-deep"
         >
           {label}
         </label>
@@ -25,18 +37,11 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Inp
       <input
         ref={ref}
         id={inputId}
-        className={cn(
-          'w-full rounded-xl border border-ink/15 bg-white px-4 py-2.5 text-base text-ink',
-          'placeholder:text-ink/40',
-          'focus:outline-none focus:border-sage focus:ring-4 focus:ring-sage/20',
-          'transition-all',
-          error && 'border-error focus:border-error focus:ring-error/20',
-          className,
-        )}
+        className={cn(FIELD_BASE, error && FIELD_ERROR, className)}
         {...rest}
       />
-      {hint && !error && <p className="mt-1.5 text-xs text-ink/60">{hint}</p>}
-      {error && <p className="mt-1.5 text-xs text-error">{error}</p>}
+      {hint && !error && <p className="mt-1.5 text-xs text-deep/60">{hint}</p>}
+      {error && <p className="mt-1.5 text-xs text-pink">{error}</p>}
     </div>
   )
 })
@@ -57,7 +62,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(fun
       {label && (
         <label
           htmlFor={inputId}
-          className="mb-1.5 block text-sm font-medium text-ink"
+          className="mb-1.5 block text-sm font-semibold text-deep"
         >
           {label}
         </label>
@@ -65,18 +70,11 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(fun
       <textarea
         ref={ref}
         id={inputId}
-        className={cn(
-          'w-full rounded-xl border border-ink/15 bg-white px-4 py-2.5 text-base text-ink',
-          'placeholder:text-ink/40',
-          'focus:outline-none focus:border-sage focus:ring-4 focus:ring-sage/20',
-          'transition-all resize-y',
-          error && 'border-error focus:border-error focus:ring-error/20',
-          className,
-        )}
+        className={cn(FIELD_BASE, 'resize-y', error && FIELD_ERROR, className)}
         {...rest}
       />
-      {hint && !error && <p className="mt-1.5 text-xs text-ink/60">{hint}</p>}
-      {error && <p className="mt-1.5 text-xs text-error">{error}</p>}
+      {hint && !error && <p className="mt-1.5 text-xs text-deep/60">{hint}</p>}
+      {error && <p className="mt-1.5 text-xs text-pink">{error}</p>}
     </div>
   )
 })
@@ -97,7 +95,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(function 
       {label && (
         <label
           htmlFor={inputId}
-          className="mb-1.5 block text-sm font-medium text-ink"
+          className="mb-1.5 block text-sm font-semibold text-deep"
         >
           {label}
         </label>
@@ -105,19 +103,13 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(function 
       <select
         ref={ref}
         id={inputId}
-        className={cn(
-          'w-full rounded-xl border border-ink/15 bg-white px-4 py-2.5 text-base text-ink',
-          'focus:outline-none focus:border-sage focus:ring-4 focus:ring-sage/20',
-          'transition-all',
-          error && 'border-error focus:border-error focus:ring-error/20',
-          className,
-        )}
+        className={cn(FIELD_BASE, error && FIELD_ERROR, className)}
         {...rest}
       >
         {children}
       </select>
-      {hint && !error && <p className="mt-1.5 text-xs text-ink/60">{hint}</p>}
-      {error && <p className="mt-1.5 text-xs text-error">{error}</p>}
+      {hint && !error && <p className="mt-1.5 text-xs text-deep/60">{hint}</p>}
+      {error && <p className="mt-1.5 text-xs text-pink">{error}</p>}
     </div>
   )
 })
