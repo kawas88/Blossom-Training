@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 80" role="img" aria-label="Trainzy">
-  <!-- Wisteria 4-petal sparkle to the left of the wordmark -->
-  <g transform="translate(8 16)">
-    <path d="M24 0 C 24 12, 24 16, 32 24 C 40 24, 44 24, 48 24 C 44 24, 40 24, 32 24 C 24 32, 24 36, 24 48 C 24 36, 24 32, 16 24 C 8 24, 4 24, 0 24 C 4 24, 8 24, 16 24 C 24 16, 24 12, 24 0 Z" fill="#b497de"/>
-  </g>
-  <!-- Wordmark: deep purple Montserrat ExtraBold -->
-  <text x="78" y="56" font-family="Montserrat, system-ui, sans-serif" font-weight="800" font-size="48" letter-spacing="-1.2" fill="#1d0d2a">Trainzy</text>
-</svg>
