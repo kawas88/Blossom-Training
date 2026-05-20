@@ -1,33 +1,49 @@
 import Link from 'next/link'
-import { ArrowRight, Check } from 'lucide-react'
+import {
+  Sparkles,
+  Share2,
+  Activity,
+  Layers,
+  CheckCircle2,
+  MessageSquare,
+  Cloud,
+  ListOrdered,
+  Target,
+  GitBranch,
+  Check,
+  ArrowRight,
+} from 'lucide-react'
 import { Logo } from '@/components/Logo'
-import { BrandShape, type BrandShapeColor, type BrandShapeKind } from '@/components/BrandShape'
-import { BrandSquiggle } from '@/components/BrandSquiggle'
 
 // ---------------------------------------------------------------------
-// Trainzy marketing homepage.
+// Trainzy marketing homepage v3.
 //
-// Composition philosophy: premium B2B SaaS (Notion/Linear posture), the
-// personality comes from the vibrant palette and *sparing* brand-shape
-// placement (max 3 per section, one statement shape at most). Each
-// section gets one dominant accent so the scroll has visual rhythm.
+// Premium B2B SaaS posture for education buyers — training managers in
+// nurseries, schools, universities, and L&D departments. Reference set
+// is Wooclap / Slido: white + ink + one accent, restrained corporate
+// composition, real product screenshots carry the proof.
 //
-// Audience is twofold:
-//   1. Buyers — training managers in education. Long scroll, proof and
-//      pricing have to be visible without leaving the page.
-//   2. Participants with a join code — should be able to paste their
-//      code and leave in <10s. The hero keeps the form below the
-//      buyer-facing CTAs, demoted but reachable.
+// Palette lock for this page only (rest of the product keeps its full
+// playful palette):
+//   --white    #ffffff   primary surface
+//   --cream    #fcfaf7   secondary surface
+//   --ink      #1d0d2a   all text + dark moments
+//   --wisteria #b497de   single primary accent
+//   --sunglow  #f8d278   highlight, used sparingly
+//
+// No BrandShape / BrandSquiggle on this page. No pink/mint/blue/orange/
+// mauve. No italics — wisteria emphasis is colour + weight 900 only.
 // ---------------------------------------------------------------------
 export default function HomePage() {
   return (
-    <main className="bg-blush text-deep">
+    <main className="bg-white text-ink">
       <TopNav />
       <Hero />
-      <HowItWorks />
-      <ExerciseShowcase />
-      <PricingTeaser />
       <TrustStrip />
+      <HowItWorks />
+      <ProductPreview />
+      <ExerciseTypes />
+      <PricingTeaser />
       <FinalCta />
       <SiteFooter />
     </main>
@@ -35,162 +51,101 @@ export default function HomePage() {
 }
 
 // ---------------------------------------------------------------------
-// Top nav — sits across all marketing sections on the page.
+// Top nav — sticky, ~72px tall, hairline bottom border.
+// Mobile: nav links hide, logo + primary CTA remain.
 // ---------------------------------------------------------------------
 function TopNav() {
   return (
-    <header className="relative z-20 px-6 md:px-10 pt-7">
-      <div className="mx-auto flex max-w-6xl items-center justify-between">
+    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-ink/8">
+      <div className="mx-auto max-w-6xl px-6 md:px-8 h-[72px] flex items-center justify-between">
         <Link href="/" aria-label="Trainzy home">
           <Logo height={32} />
         </Link>
-        <nav className="flex items-center gap-3 md:gap-5">
-          <Link
-            href="#how-it-works"
-            className="hidden sm:inline text-sm font-semibold text-deep/70 hover:text-deep transition-colors"
-          >
+
+        <nav className="hidden md:flex items-center gap-7">
+          <Link href="#how-it-works" className="text-sm font-medium text-ink/75 hover:text-ink transition-colors">
             How it works
           </Link>
-          <Link
-            href="/pricing"
-            className="text-sm font-semibold text-deep/70 hover:text-deep transition-colors"
-          >
+          <Link href="/pricing" className="text-sm font-medium text-ink/75 hover:text-ink transition-colors">
             Pricing
           </Link>
-          <Link
-            href="/admin/login"
-            className="text-sm font-semibold text-deep/70 hover:text-deep transition-colors"
-          >
+        </nav>
+
+        <div className="flex items-center gap-3 md:gap-4">
+          <Link href="/admin/login" className="hidden sm:inline text-sm font-medium text-ink/75 hover:text-ink transition-colors">
             Sign in
           </Link>
-          <Link
-            href="/signup"
-            className="inline-flex items-center rounded-full bg-wisteria text-white px-5 py-2 text-sm font-semibold hover:bg-wisteria/90 transition-all active:scale-[0.98]"
-          >
+          <Link href="/signup" className="inline-flex items-center rounded-full bg-wisteria text-white px-4 py-2 text-sm font-semibold hover:bg-wisteria/90 transition-all active:scale-[0.98]">
             Start free trial
           </Link>
-        </nav>
+        </div>
       </div>
     </header>
   )
 }
 
 // ---------------------------------------------------------------------
-// Section 1 — Hero
-//
-// Deliberate shape placement (NOT scatter). Three shapes:
-//   • pink cross, top-right
-//   • sunglow flower, bottom-left
-//   • wisteria sparkle, bottom-right edge
-// Shapes hide on small screens so they don't crowd the form.
+// Section 1 — Split hero.
+// Left: copy + CTAs + demoted join-code form for participants.
+// Right: big screenshot placeholder (4:3) — sets the bar for premium
+// feel and tells future-Kawas exactly which screenshot belongs here.
 // ---------------------------------------------------------------------
 function Hero() {
   return (
-    <section className="relative min-h-[80vh] flex flex-col justify-center px-6 md:px-10 py-16 md:py-24 overflow-hidden">
-      {/* Deliberate shape placement (3 shapes max per section) */}
-      <BrandShape
-        kind="cross"
-        color="pink"
-        size="xl"
-        rotate={8}
-        className="hidden md:block absolute top-24 right-12 opacity-90"
-      />
-      <BrandShape
-        kind="flower"
-        color="sunglow"
-        size="lg"
-        rotate={-12}
-        className="hidden md:block absolute bottom-20 left-12"
-      />
-      <BrandShape
-        kind="sparkle"
-        color="wisteria"
-        size="md"
-        rotate={20}
-        className="hidden lg:block absolute bottom-32 right-24"
-      />
-
-      <div className="relative z-10 mx-auto max-w-4xl w-full text-center">
-        <span className="inline-flex items-center gap-2 rounded-full bg-wisteria/15 text-wisteria px-4 py-1.5 text-[11px] font-semibold tracking-eyebrow uppercase">
-          For trainers who care
-        </span>
-
-        <h1
-          className="mt-7 mx-auto text-deep text-balance"
-          style={{
-            fontSize: 'clamp(56px, 8vw, 112px)',
-            fontWeight: 800,
-            letterSpacing: '-0.03em',
-            lineHeight: 1.05,
-          }}
-        >
-          Run training your team will{' '}
-          <span className="text-wisteria" style={{ fontWeight: 900 }}>
-            remember.
+    <section className="bg-white min-h-[80vh] flex items-center px-6 md:px-8 py-16 md:py-24">
+      <div className="mx-auto max-w-6xl w-full grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center">
+        {/* Left column — copy */}
+        <div>
+          <span className="inline-flex items-center rounded-full bg-wisteria/10 text-wisteria px-3 py-1 text-[13px] font-semibold uppercase tracking-[0.1em]">
+            For trainers in education
           </span>
-        </h1>
 
-        <p
-          className="mt-6 mx-auto text-deep/70"
-          style={{
-            maxWidth: 600,
-            fontSize: 20,
-            fontWeight: 400,
-            lineHeight: 1.5,
-          }}
-        >
-          Live, interactive sessions for the moments that count — quizzes,
-          reflections, word clouds, branching scenarios. All in one place.
-        </p>
+          <h1 className="mt-6 text-ink text-balance" style={{ fontSize: 'clamp(40px, 5.5vw, 76px)', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.05 }}>
+            Run training your team will{' '}
+            <span className="text-wisteria" style={{ fontWeight: 900 }}>
+              remember.
+            </span>
+          </h1>
 
-        <div className="mt-10 flex items-center justify-center gap-4 flex-wrap">
-          <Link
-            href="/signup"
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-wisteria text-white px-8 py-4 text-base font-semibold hover:bg-wisteria/90 transition-all active:scale-[0.98] shadow-glow"
-          >
-            Start free 14-day trial
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-          <Link
-            href="#how-it-works"
-            className="text-base font-semibold text-deep hover:underline underline-offset-4 decoration-wisteria decoration-2"
-          >
-            See how it works
-          </Link>
+          <p className="mt-6 text-ink/70" style={{ fontSize: 18, fontWeight: 400, lineHeight: 1.55, maxWidth: 480 }}>
+            Live, interactive sessions for trainers who care about retention.
+            Quizzes, reflections, word clouds, branching scenarios — all in
+            one place, no installs.
+          </p>
+
+          <div className="mt-8 flex items-center gap-5 flex-wrap">
+            <Link href="/signup" className="inline-flex items-center justify-center gap-2 rounded-full bg-wisteria text-white px-6 py-3 text-base font-semibold hover:bg-wisteria/90 transition-all active:scale-[0.98]">
+              Start free trial
+            </Link>
+            <Link href="#how-it-works" className="inline-flex items-center gap-1.5 text-base font-medium text-ink hover:text-wisteria transition-colors">
+              See how it works
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+
+          {/* Demoted participant entry. Smaller, lighter — doesn't compete
+              with the buyer CTA above. */}
+          <div className="mt-10 max-w-md">
+            <p className="text-[13px] text-ink/55 mb-2">Got a join code?</p>
+            <form action="/join" method="GET" className="flex items-center gap-1 rounded-full bg-white border border-ink/15 p-1">
+              <input type="text" name="code" id="code" required autoComplete="off" autoCapitalize="characters" spellCheck={false} maxLength={20} placeholder="Enter code" aria-label="Join code" className="flex-1 min-w-0 bg-transparent px-3 py-1.5 text-sm font-semibold tracking-[0.16em] uppercase text-ink placeholder:text-ink/35 focus:outline-none" />
+              <button type="submit" aria-label="Continue with join code" className="shrink-0 inline-flex items-center justify-center h-8 w-8 rounded-full bg-ink text-white hover:bg-ink/90 transition-colors">
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            </form>
+          </div>
         </div>
 
-        {/* Demoted join code form — buyers shouldn't read this as the
-            primary CTA, but it's reachable for participants. */}
-        <div className="mt-16 mx-auto max-w-md">
-          <p className="text-sm text-deep/55 mb-3">
-            Got a join code from your trainer?
-          </p>
-          <form
-            action="/join"
-            method="GET"
-            className="flex items-center gap-2 rounded-full bg-white border-[1.5px] border-line p-1.5 shadow-card"
-          >
-            <input
-              type="text"
-              name="code"
-              id="code"
-              required
-              autoComplete="off"
-              autoCapitalize="characters"
-              spellCheck={false}
-              maxLength={20}
-              placeholder="Enter code"
-              aria-label="Join code"
-              className="flex-1 min-w-0 bg-transparent px-4 py-2 text-base font-semibold tracking-[0.18em] uppercase text-deep placeholder:text-deep/40 focus:outline-none"
-            />
-            <button
-              type="submit"
-              className="shrink-0 inline-flex items-center justify-center h-10 w-10 rounded-full bg-deep text-white hover:bg-deep/90 transition-colors"
-              aria-label="Continue"
-            >
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          </form>
+        {/* Right column — hero screenshot placeholder (4:3) */}
+        <div className="relative aspect-[4/3] bg-ink/5 rounded-2xl border border-ink/10 overflow-hidden flex items-center justify-center">
+          <div className="text-center px-6">
+            <div className="text-xs font-semibold tracking-widest uppercase text-ink/40 mb-2">
+              Screenshot placeholder
+            </div>
+            <div className="text-sm text-ink/60">
+              Live cockpit · 1200×900px
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -198,87 +153,20 @@ function Hero() {
 }
 
 // ---------------------------------------------------------------------
-// Section 2 — How it works (3 steps)
-//
-// Blush background continues from hero. Three cards, each with a brand
-// shape icon, a step number, headline, description. No background
-// shapes — the icons inside the cards are the only shapes in this
-// section (3 shapes total, one per card, on-axis inside the layout).
+// Section 2 — Trust strip. Quiet beat with placeholder logos. Honest
+// rectangles instead of fake brand names; replace as customers land.
 // ---------------------------------------------------------------------
-function HowItWorks() {
-  const steps = [
-    {
-      number: '01',
-      shape: 'hexagon' as BrandShapeKind,
-      color: 'mint' as BrandShapeColor,
-      title: 'Build a session in minutes.',
-      body:
-        'Pick from seven exercise types — quizzes, reflections, word clouds, ranking activities, image annotations, branching scenarios, and matching games. Mix and match. We&rsquo;ve already filled in the boring bits.',
-    },
-    {
-      number: '02',
-      shape: 'stack' as BrandShapeKind,
-      color: 'blue' as BrandShapeColor,
-      title: 'Share a code or QR.',
-      body:
-        'Each session gets a short join code. Show it on screen, share the QR, or send the link. Participants join in one tap — no accounts, no downloads, no app stores.',
-    },
-    {
-      number: '03',
-      shape: 'star5' as BrandShapeKind,
-      color: 'pink' as BrandShapeColor,
-      title: 'Run it live or self-paced.',
-      body:
-        'Trainers can drive the room from a live cockpit, or let participants work through exercises at their own pace. Either way, you see responses, themes, and reactions in real time.',
-    },
-  ]
-
+function TrustStrip() {
   return (
-    <section id="how-it-works" className="relative px-6 md:px-10 py-32">
-      <div className="mx-auto max-w-6xl">
-        <div className="text-center max-w-3xl mx-auto">
-          <span className="inline-flex items-center gap-2 rounded-full bg-sunglow/25 text-deep px-4 py-1.5 text-[11px] font-semibold tracking-eyebrow uppercase">
-            How it works
-          </span>
-          <h2
-            className="mt-6 text-deep text-balance"
-            style={{
-              fontSize: 'clamp(36px, 5vw, 56px)',
-              fontWeight: 700,
-              letterSpacing: '-0.02em',
-              lineHeight: 1.1,
-            }}
-          >
-            Three minutes to set up. Forever to make better.
-          </h2>
-        </div>
-
-        <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-          {steps.map((step) => (
-            <div
-              key={step.number}
-              className="rounded-3xl bg-blush-deep p-7 md:p-8 shadow-soft hover:shadow-card transition-shadow"
-            >
-              <BrandShape kind={step.shape} color={step.color} px={80} />
-              <p className="mt-6 font-mono text-xs tracking-eyebrow uppercase text-deep/55">
-                {step.number}
-              </p>
-              <h3
-                className="mt-2 text-deep"
-                style={{
-                  fontSize: 24,
-                  fontWeight: 700,
-                  letterSpacing: '-0.01em',
-                  lineHeight: 1.2,
-                }}
-              >
-                {step.title}
-              </h3>
-              <p
-                className="mt-3 text-deep/75"
-                style={{ fontSize: 16, fontWeight: 400, lineHeight: 1.5 }}
-                dangerouslySetInnerHTML={{ __html: step.body }}
-              />
+    <section className="bg-cream px-6 md:px-8 py-12">
+      <div className="mx-auto max-w-5xl text-center">
+        <p className="text-ink/80" style={{ fontSize: 14, fontWeight: 600, letterSpacing: '0.01em' }}>
+          Trusted by trainers in nurseries, schools, universities, and L&amp;D teams.
+        </p>
+        <div className="mt-8 flex items-center justify-center gap-8 md:gap-12 flex-wrap opacity-50">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="w-32 h-10 bg-ink/10 rounded flex items-center justify-center text-xs text-ink/40">
+              Logo {i}
             </div>
           ))}
         </div>
@@ -288,120 +176,57 @@ function HowItWorks() {
 }
 
 // ---------------------------------------------------------------------
-// Section 3 — Exercise types showcase
-//
-// White background for visual rhythm. Seven cards, each shape lives
-// inside the card as the icon (not as background decoration), so the
-// total "loose" shape count for this section is zero — the cards earn
-// the shape budget through content.
+// Section 3 — How it works. Three numbered cards, lucide line icons.
 // ---------------------------------------------------------------------
-function ExerciseShowcase() {
-  const types: Array<{
-    name: string
-    shape: BrandShapeKind
-    color: BrandShapeColor
-    body: string
-  }> = [
+function HowItWorks() {
+  const steps = [
     {
-      name: 'Matching',
-      shape: 'hexagon',
-      color: 'mint',
+      number: '01',
+      Icon: Sparkles,
+      title: 'Build a session in minutes.',
       body:
-        'Drag concepts to where they belong. Great for facts that need to stick.',
+        'Pick from seven exercise types — quizzes, reflections, word clouds, ranking, image annotations, branching scenarios, and matching games. Mix and match. We’ve already filled in the boring bits.',
     },
     {
-      name: 'Quiz',
-      shape: 'star',
-      color: 'sunglow',
+      number: '02',
+      Icon: Share2,
+      title: 'Share a code or QR.',
       body:
-        'Multiple choice with instant feedback. Two questions or twenty.',
+        'Each session gets a short join code. Show it on screen, share the QR, or send the link. Participants join in one tap — no accounts, no downloads, no app stores.',
     },
     {
-      name: 'Reflection',
-      shape: 'cloud',
-      color: 'mauve',
+      number: '03',
+      Icon: Activity,
+      title: 'Run it live or self-paced.',
       body:
-        'Open-ended writing prompts. Themes surface automatically with AI.',
-    },
-    {
-      name: 'Word Cloud',
-      shape: 'flower',
-      color: 'wisteria',
-      body:
-        'One word — or three — to describe a moment. Live, shared, anonymous.',
-    },
-    {
-      name: 'Ranking',
-      shape: 'stack',
-      color: 'blue',
-      body:
-        'Order priorities, values, or steps. See where the room agrees.',
-    },
-    {
-      name: 'Image Annotation',
-      shape: 'blob',
-      color: 'pink',
-      body:
-        'Tap regions of an image. Spot the milestone, find the issue.',
-    },
-    {
-      name: 'Branching Scenario',
-      shape: 'star5',
-      color: 'orange',
-      body:
-        'Choose-your-own-adventure for real classroom moments.',
+        'Drive the room from a live cockpit, or let participants work through exercises at their own pace. Either way, you see responses, themes, and reactions in real time.',
     },
   ]
 
   return (
-    <section className="bg-white px-6 md:px-10 py-32">
+    <section id="how-it-works" className="bg-white px-6 md:px-8 py-24">
       <div className="mx-auto max-w-6xl">
         <div className="text-center max-w-3xl mx-auto">
-          <span className="inline-flex items-center gap-2 rounded-full bg-orange/15 text-orange px-4 py-1.5 text-[11px] font-semibold tracking-eyebrow uppercase">
-            What&rsquo;s inside
+          <span className="inline-flex items-center rounded-full bg-wisteria/10 text-wisteria px-3 py-1 text-[13px] font-semibold uppercase tracking-[0.1em]">
+            How it works
           </span>
-          <h2
-            className="mt-6 text-deep text-balance"
-            style={{
-              fontSize: 'clamp(36px, 5vw, 56px)',
-              fontWeight: 700,
-              letterSpacing: '-0.02em',
-              lineHeight: 1.1,
-            }}
-          >
-            Seven ways to make a session land.
+          <h2 className="mt-5 text-ink text-balance" style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+            Three steps to a session that lands.
           </h2>
-          <p
-            className="mt-5 mx-auto text-deep/70 text-balance"
-            style={{ maxWidth: 600, fontSize: 18, fontWeight: 400, lineHeight: 1.5 }}
-          >
-            From a quick warm-up to a full debrief. Each exercise is built
-            around a real human moment.
-          </p>
         </div>
 
-        <div className="mt-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
-          {types.map((t) => (
-            <article
-              key={t.name}
-              className="rounded-3xl bg-white border-[1.5px] border-line p-6 md:p-7 shadow-soft hover:shadow-card hover:-translate-y-0.5 transition-all"
-            >
-              <BrandShape kind={t.shape} color={t.color} px={88} />
-              <h3
-                className="mt-5 text-deep"
-                style={{
-                  fontSize: 20,
-                  fontWeight: 700,
-                  letterSpacing: '-0.01em',
-                }}
-              >
-                {t.name}
+        <div className="mt-14 grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+          {steps.map(({ number, Icon, title, body }) => (
+            <article key={number} className="rounded-2xl bg-white border border-ink/10 p-8 hover:border-ink/20 transition-colors">
+              <Icon className="h-7 w-7 text-ink" strokeWidth={1.5} />
+              <p className="mt-6 text-ink/50" style={{ fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                {number}
+              </p>
+              <h3 className="mt-2 text-ink" style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.01em', lineHeight: 1.2 }}>
+                {title}
               </h3>
-              <p
-                className="mt-2 text-deep/70"
-                style={{ fontSize: 14, fontWeight: 400, lineHeight: 1.5 }}
-              >
-                {t.body}
+              <p className="mt-3 text-ink/70" style={{ fontSize: 15, fontWeight: 400, lineHeight: 1.55 }}>
+                {body}
               </p>
             </article>
           ))}
@@ -412,11 +237,124 @@ function ExerciseShowcase() {
 }
 
 // ---------------------------------------------------------------------
-// Section 4 — Pricing teaser
-//
-// Blush again. Two cards, organization gets the wisteria border accent.
-// Don't touch Stripe wiring — this is a teaser that links to /pricing
-// for the full comparison.
+// Section 4 — Product preview moment. The big screenshot placeholder
+// at 16:9, framed with a small heading + subhead. Cream surface so the
+// frame reads as a paused moment in the scroll.
+// ---------------------------------------------------------------------
+function ProductPreview() {
+  return (
+    <section className="bg-cream px-6 md:px-8 py-32">
+      <div className="mx-auto max-w-[1100px]">
+        <div className="text-center max-w-2xl mx-auto">
+          <span className="inline-flex items-center rounded-full bg-sunglow/25 text-ink px-3 py-1 text-[13px] font-semibold uppercase tracking-[0.1em]">
+            Inside Trainzy
+          </span>
+          <h2 className="mt-5 text-ink text-balance" style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+            See what your trainers do.
+          </h2>
+          <p className="mt-5 text-ink/70 mx-auto" style={{ fontSize: 17, fontWeight: 400, lineHeight: 1.55, maxWidth: 600 }}>
+            Real-time word clouds, AI-surfaced themes, and live Q&amp;A — all
+            from one cockpit.
+          </p>
+        </div>
+
+        <div className="mt-12 relative aspect-[16/9] bg-ink/5 rounded-2xl border border-ink/10 overflow-hidden flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-xs font-semibold tracking-widest uppercase text-ink/40 mb-2">
+              Screenshot placeholder
+            </div>
+            <div className="text-sm text-ink/60">
+              Trainer cockpit during live session · 1600×900px
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ---------------------------------------------------------------------
+// Section 5 — Exercise types. Seven cards, lucide line icons in
+// wisteria. The accent on icons gives the grid visual rhythm without
+// pulling the brand toward "kids' app".
+// ---------------------------------------------------------------------
+function ExerciseTypes() {
+  const types = [
+    {
+      name: 'Matching',
+      Icon: Layers,
+      body: 'Drag concepts to where they belong. For facts that need to stick.',
+    },
+    {
+      name: 'Quiz',
+      Icon: CheckCircle2,
+      body: 'Multiple choice with instant feedback. Two questions or twenty.',
+    },
+    {
+      name: 'Reflection',
+      Icon: MessageSquare,
+      body: 'Open-ended writing prompts. Themes surface automatically with AI.',
+    },
+    {
+      name: 'Word Cloud',
+      Icon: Cloud,
+      body: 'One word — or three — to describe a moment. Live, shared, anonymous.',
+    },
+    {
+      name: 'Ranking',
+      Icon: ListOrdered,
+      body: 'Order priorities, values, or steps. See where the room agrees.',
+    },
+    {
+      name: 'Image Annotation',
+      Icon: Target,
+      body: 'Tap regions of an image. Spot the milestone, find the issue.',
+    },
+    {
+      name: 'Branching Scenario',
+      Icon: GitBranch,
+      body: 'Choose-your-own-adventure for real classroom moments.',
+    },
+  ]
+
+  return (
+    <section className="bg-white px-6 md:px-8 py-24">
+      <div className="mx-auto max-w-6xl">
+        <div className="text-center max-w-3xl mx-auto">
+          <span className="inline-flex items-center rounded-full bg-wisteria/10 text-wisteria px-3 py-1 text-[13px] font-semibold uppercase tracking-[0.1em]">
+            What’s inside
+          </span>
+          <h2 className="mt-5 text-ink text-balance" style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+            Seven ways to make a session land.
+          </h2>
+          <p className="mt-5 text-ink/70 mx-auto" style={{ fontSize: 17, fontWeight: 400, lineHeight: 1.55, maxWidth: 600 }}>
+            From a quick warm-up to a full debrief. Each exercise is built for
+            a real human moment.
+          </p>
+        </div>
+
+        <div className="mt-14 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 md:gap-6">
+          {types.map(({ name, Icon, body }) => (
+            <article key={name} className="rounded-2xl bg-white border border-ink/10 p-6 hover:border-ink/20 transition-colors">
+              <Icon className="h-6 w-6 text-wisteria" strokeWidth={1.75} />
+              <h3 className="mt-4 text-ink" style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.01em' }}>
+                {name}
+              </h3>
+              <p className="mt-2 text-ink/70" style={{ fontSize: 14, fontWeight: 400, lineHeight: 1.55 }}>
+                {body}
+              </p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ---------------------------------------------------------------------
+// Section 6 — Pricing teaser. Two cards, Organization wisteria-bordered
+// with a sunglow "Most popular" pill. Links to /pricing for the full
+// comparison; no Stripe logic touched here.
 // ---------------------------------------------------------------------
 function PricingTeaser() {
   const personal = [
@@ -434,62 +372,32 @@ function PricingTeaser() {
     'Live Q&A moderation',
     'Priority support',
   ]
-
   return (
-    <section className="px-6 md:px-10 py-32">
+    <section className="bg-cream px-6 md:px-8 py-24">
       <div className="mx-auto max-w-5xl">
         <div className="text-center max-w-3xl mx-auto">
-          <span className="inline-flex items-center gap-2 rounded-full bg-wisteria/15 text-wisteria px-4 py-1.5 text-[11px] font-semibold tracking-eyebrow uppercase">
+          <span className="inline-flex items-center rounded-full bg-wisteria/10 text-wisteria px-3 py-1 text-[13px] font-semibold uppercase tracking-[0.1em]">
             Pricing
           </span>
-          <h2
-            className="mt-6 text-deep text-balance"
-            style={{
-              fontSize: 'clamp(36px, 5vw, 56px)',
-              fontWeight: 700,
-              letterSpacing: '-0.02em',
-              lineHeight: 1.1,
-            }}
-          >
+          <h2 className="mt-5 text-ink text-balance" style={{ fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
             Plans that grow with you.
           </h2>
-          <p
-            className="mt-5 mx-auto text-deep/70 text-balance"
-            style={{ maxWidth: 600, fontSize: 18, fontWeight: 400, lineHeight: 1.5 }}
-          >
-            Start free for 14 days. No credit card to start. Cancel anytime.
+          <p className="mt-5 text-ink/70 mx-auto" style={{ fontSize: 17, fontWeight: 400, lineHeight: 1.55, maxWidth: 600 }}>
+            Start free for 14 days. No credit card required. Cancel anytime.
           </p>
         </div>
 
-        <div className="mt-14 grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
-          <PlanCard
-            eyebrow="For individual trainers"
-            name="Personal"
-            price="AED 199"
-            cadence="/ month"
-            tagline="Perfect for one trainer running regular sessions."
-            features={personal}
-          />
-          <PlanCard
-            eyebrow="For teams & institutions"
-            name="Organization"
-            price="AED 899"
-            cadence="/ month"
-            tagline="Built for training departments and education teams."
-            features={organization}
-            highlight
-          />
+        <div className="mt-14 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          <PlanCard eyebrow="For individual trainers" name="Personal" price="AED 199" cadence="/ month" tagline="Perfect for one trainer running regular sessions." features={personal} />
+          <PlanCard eyebrow="For teams & institutions" name="Organization" price="AED 899" cadence="/ month" tagline="Built for training departments and education teams." features={organization} highlight />
         </div>
 
-        <p className="mt-8 text-center text-sm text-deep/60">
+        <p className="mt-8 text-center text-sm text-ink/65">
           Need more?{' '}
-          <Link
-            href="/pricing"
-            className="font-semibold text-deep underline underline-offset-2 decoration-wisteria decoration-2 hover:text-wisteria"
-          >
-            See all plans &amp; enterprise
-          </Link>
-          .
+          <Link href="/pricing" className="font-semibold text-wisteria hover:underline underline-offset-2">
+            Contact us
+          </Link>{' '}
+          for enterprise plans.
         </p>
       </div>
     </section>
@@ -514,50 +422,31 @@ function PlanCard({
   highlight?: boolean
 }) {
   return (
-    <div
-      className={
-        'relative rounded-3xl bg-white p-7 md:p-9 ' +
-        (highlight
-          ? 'border-2 border-wisteria shadow-glow'
-          : 'border-[1.5px] border-line shadow-soft')
-      }
-    >
+    <div className={ 'relative rounded-2xl bg-white p-8 ' + (highlight ? 'border-2 border-wisteria' : 'border border-ink/10') }>
       {highlight && (
-        <span className="absolute -top-3 left-8 inline-flex items-center rounded-full bg-sunglow text-deep px-3 py-1 text-[10px] font-semibold tracking-eyebrow uppercase">
+        <span className="absolute top-6 right-6 inline-flex items-center rounded-full bg-sunglow text-ink px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.1em]">
           Most popular
         </span>
       )}
-      <p className="font-mono text-[10px] tracking-eyebrow uppercase text-deep/55">
+      <p className="text-ink/55" style={{ fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
         {eyebrow}
       </p>
-      <h3
-        className="mt-2 text-deep"
-        style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em' }}
-      >
-        {name}
-      </h3>
       <div className="mt-5 flex items-baseline gap-2">
-        <span
-          className="text-deep"
-          style={{ fontSize: 56, fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1 }}
-        >
+        <span className="text-ink" style={{ fontSize: 48, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1 }}>
           {price}
         </span>
-        <span className="text-deep/55 text-base font-medium">{cadence}</span>
+        <span className="text-ink/60 text-sm font-medium">{cadence}</span>
       </div>
-      <p className="mt-3 text-deep/70 text-sm">{tagline}</p>
+      <p className="mt-3 text-ink/70 text-sm">{tagline}</p>
       <ul className="mt-6 space-y-2.5">
         {features.map((f) => (
-          <li key={f} className="flex items-start gap-2.5 text-sm text-deep/85">
-            <Check className="h-4 w-4 shrink-0 mt-0.5 text-mint" strokeWidth={3} />
+          <li key={f} className="flex items-start gap-2.5 text-[15px] text-ink/85">
+            <Check className="h-4 w-4 shrink-0 mt-0.5 text-wisteria" strokeWidth={2.5} />
             <span>{f}</span>
           </li>
         ))}
       </ul>
-      <Link
-        href="/signup"
-        className="mt-8 inline-flex items-center justify-center gap-2 w-full rounded-full bg-wisteria text-white px-6 py-3 text-sm font-semibold hover:bg-wisteria/90 transition-all active:scale-[0.98]"
-      >
+      <Link href="/signup" className="mt-8 inline-flex items-center justify-center w-full rounded-full bg-wisteria text-white px-6 py-3 text-sm font-semibold hover:bg-wisteria/90 transition-all active:scale-[0.98]">
         Start free trial
       </Link>
     </div>
@@ -565,107 +454,26 @@ function PlanCard({
 }
 
 // ---------------------------------------------------------------------
-// Section 5 — Trust strip
-//
-// Confidence beat — small section, blush-deep background. Placeholder
-// logos are deliberate honesty (no fake brand names).
-// ---------------------------------------------------------------------
-function TrustStrip() {
-  return (
-    <section className="bg-blush-deep px-6 md:px-10 py-24">
-      <div className="mx-auto max-w-5xl text-center">
-        <span className="inline-flex items-center gap-2 rounded-full bg-white text-deep px-4 py-1.5 text-[11px] font-semibold tracking-eyebrow uppercase">
-          Built for education
-        </span>
-        <p
-          className="mt-6 mx-auto text-deep text-balance"
-          style={{
-            maxWidth: 760,
-            fontSize: 28,
-            fontWeight: 700,
-            letterSpacing: '-0.01em',
-            lineHeight: 1.3,
-          }}
-        >
-          Trusted by trainers in nurseries, schools, universities, and
-          corporate L&amp;D teams.
-        </p>
-        <div className="mt-10 flex items-center justify-center gap-8 md:gap-12 opacity-50">
-          {(['hexagon', 'sparkle', 'star5', 'flower', 'cross'] as BrandShapeKind[]).map(
-            (k, i) => (
-              <BrandShape
-                key={`${k}-${i}`}
-                kind={k}
-                color="deep"
-                size="md"
-                className="grayscale"
-              />
-            ),
-          )}
-        </div>
-        <p className="mt-5 text-xs text-deep/55 font-mono uppercase tracking-eyebrow">
-          Customer logos coming soon
-        </p>
-      </div>
-    </section>
-  )
-}
-
-// ---------------------------------------------------------------------
-// Section 6 — Final CTA
-//
-// The only dark section on the page — creates rhythm and gravity.
-// Decoration kept restrained: a large faint squiggle behind the heading
-// + one small sparkle near the headline.
+// Section 7 — Final CTA. Only dark section on the page; gravity beat.
+// No decoration — typography + sunglow CTA carry the contrast.
 // ---------------------------------------------------------------------
 function FinalCta() {
   return (
-    <section className="relative bg-deep text-white px-6 md:px-10 py-32 overflow-hidden">
-      {/* Decoration — restrained for dark sections */}
-      <BrandSquiggle
-        variant="loop"
-        color="wisteria"
-        className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[120%] h-32 opacity-25"
-      />
-      <BrandShape
-        kind="sparkle"
-        color="pink"
-        size="sm"
-        rotate={20}
-        className="hidden md:block absolute top-24 right-1/3 opacity-90"
-      />
-
-      <div className="relative z-10 mx-auto max-w-3xl text-center">
-        <h2
-          className="text-blush text-balance"
-          style={{
-            fontSize: 'clamp(40px, 6vw, 64px)',
-            fontWeight: 800,
-            letterSpacing: '-0.02em',
-            lineHeight: 1.05,
-          }}
-        >
-          Ready to run training that lands?
+    <section className="bg-ink text-white px-6 md:px-8 py-24">
+      <div className="mx-auto max-w-3xl text-center">
+        <h2 className="text-white text-balance" style={{ fontSize: 'clamp(32px, 4.5vw, 48px)', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+          Ready to run training your team will remember?
         </h2>
-        <p
-          className="mt-5 mx-auto text-blush/75"
-          style={{ maxWidth: 520, fontSize: 18, fontWeight: 400, lineHeight: 1.5 }}
-        >
+        <p className="mt-5 text-white/70 mx-auto" style={{ fontSize: 17, fontWeight: 400, lineHeight: 1.55, maxWidth: 520 }}>
           14 days free. Setup takes 3 minutes. Cancel anytime.
         </p>
-        <Link
-          href="/signup"
-          className="mt-10 inline-flex items-center justify-center gap-2 rounded-full bg-sunglow text-deep px-8 py-4 text-base font-semibold hover:bg-sunglow/90 transition-all active:scale-[0.98]"
-        >
+        <Link href="/signup" className="mt-9 inline-flex items-center justify-center gap-2 rounded-full bg-sunglow text-ink px-7 py-3.5 text-base font-semibold hover:bg-sunglow/90 transition-all active:scale-[0.98]">
           Start your free trial
           <ArrowRight className="h-4 w-4" />
         </Link>
-        <p className="mt-6 text-sm text-blush/60">
+        <p className="mt-6 text-sm text-white/50">
           Already a customer?{' '}
-          <Link
-            href="/admin/login"
-            className="font-semibold text-blush hover:text-wisteria transition-colors underline underline-offset-2 decoration-wisteria/50"
-          >
+          <Link href="/admin/login" className="font-semibold text-white hover:text-wisteria transition-colors">
             Sign in →
           </Link>
         </p>
@@ -675,67 +483,67 @@ function FinalCta() {
 }
 
 // ---------------------------------------------------------------------
-// Section 7 — Footer
+// Section 8 — Footer. Four columns; restrained corporate posture.
 // ---------------------------------------------------------------------
 function SiteFooter() {
   return (
-    <footer className="bg-deep text-white px-6 md:px-10 py-16">
+    <footer className="bg-ink text-white px-6 md:px-8 pt-16 pb-8">
       <div className="mx-auto max-w-6xl">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-          <div>
-            <Logo variant="light" height={28} />
-            <p className="mt-4 text-sm text-blush/60 max-w-[280px]">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
+          <div className="col-span-2 md:col-span-1">
+            <Logo variant="light" height={32} />
+            <p className="mt-4 text-sm text-white/60 max-w-[260px]">
               Training your team will remember.
             </p>
           </div>
 
-          <nav aria-label="Footer">
-            <p className="font-mono text-[10px] tracking-eyebrow uppercase text-blush/55 mb-3">
-              Trainzy
-            </p>
-            <ul className="space-y-2 text-sm font-medium text-blush/75">
-              <li>
-                <Link href="/pricing" className="hover:text-wisteria transition-colors">
-                  Pricing
-                </Link>
-              </li>
-              <li>
-                <Link href="/admin/login" className="hover:text-wisteria transition-colors">
-                  Sign in
-                </Link>
-              </li>
-              <li>
-                <Link href="/signup" className="hover:text-wisteria transition-colors">
-                  Start free trial
-                </Link>
-              </li>
-              <li>
-                <Link href="/privacy" className="hover:text-wisteria transition-colors">
-                  Privacy
-                </Link>
-              </li>
-              <li>
-                <Link href="/terms" className="hover:text-wisteria transition-colors">
-                  Terms
-                </Link>
-              </li>
-            </ul>
-          </nav>
+          <FooterCol title="Product" links={[ { label: 'How it works', href: '/#how-it-works' }, { label: 'Exercise types', href: '/#how-it-works' }, { label: 'Pricing', href: '/pricing' }, { label: 'Sign in', href: '/admin/login' }, ]} />
+
+          <FooterCol title="Company" links={[ { label: 'About', href: '/about' }, { label: 'Contact', href: '/contact' }, { label: 'Privacy', href: '/privacy' }, { label: 'Terms', href: '/terms' }, ]} />
 
           <div>
-            <p className="text-sm text-blush/50">Made with care in Dubai.</p>
-            <div className="mt-4 flex items-center gap-3 opacity-60">
-              <BrandShape kind="sparkle" color="wisteria" size="sm" />
-              <BrandShape kind="cross" color="pink" size="sm" />
-              <BrandShape kind="flower" color="sunglow" size="sm" />
-            </div>
+            <p className="text-white/50" style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+              Made in
+            </p>
+            <p className="mt-3 text-white" style={{ fontSize: 16, fontWeight: 600 }}>
+              Dubai, UAE
+            </p>
+            <p className="mt-2 text-xs text-white/60">
+              Built with care for trainers worldwide.
+            </p>
           </div>
         </div>
 
-        <div className="mt-12 pt-6 border-t border-blush/10 text-center text-xs text-blush/45">
-          © {new Date().getFullYear()} Trainzy · trainzy.io
+        <div className="mt-12 pt-6 border-t border-white/10 flex items-center justify-between gap-4 flex-wrap text-xs text-white/40">
+          <span>© {new Date().getFullYear()} Trainzy</span>
+          <span>trainzy.io</span>
         </div>
       </div>
     </footer>
+  )
+}
+
+function FooterCol({
+  title,
+  links,
+}: {
+  title: string
+  links: { label: string; href: string }[]
+}) {
+  return (
+    <nav aria-label={title}>
+      <p className="text-white/50" style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+        {title}
+      </p>
+      <ul className="mt-3 space-y-2 text-sm text-white/75">
+        {links.map((l) => (
+          <li key={l.label}>
+            <Link href={l.href} className="hover:text-wisteria transition-colors">
+              {l.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
   )
 }
