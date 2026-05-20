@@ -50,13 +50,15 @@ const config: Config = {
         'domain-social': '#ff6b9d',
       },
       fontFamily: {
-        // Single product family. The legacy class names (font-serif, font-mono)
-        // map onto Montserrat too so existing usage renders correctly
-        // without touching every file.
-        sans: ['var(--font-montserrat)', 'system-ui', 'sans-serif'],
-        serif: ['var(--font-montserrat)', 'system-ui', 'sans-serif'],
-        mono: ['var(--font-montserrat)', 'system-ui', 'sans-serif'],
-        display: ['var(--font-montserrat)', 'system-ui', 'sans-serif'],
+        // Single product family. League Spartan from Google Fonts —
+        // geometric sans that scales from display headlines to body. The
+        // legacy `serif`/`mono` aliases keep pointing at the same family
+        // so existing className usage (`font-serif`, `font-mono`) renders
+        // correctly; we adjust weight + tracking via globals.css.
+        sans: ['var(--font-league-spartan)', 'system-ui', 'sans-serif'],
+        serif: ['var(--font-league-spartan)', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-league-spartan)', 'system-ui', 'sans-serif'],
+        display: ['var(--font-league-spartan)', 'system-ui', 'sans-serif'],
       },
       letterSpacing: {
         tightish: '-0.02em',
