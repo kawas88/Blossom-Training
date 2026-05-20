@@ -9,6 +9,18 @@ type Props = {
   height?: number
 }
 
+// PLACEHOLDER NOTE
+// ----------------
+// The branding/Trainzy_logo_{light,dark}.svg files in the repo are a
+// synthetic re-render — the real designed wordmark hasn't been added
+// yet. When the real assets land:
+//   1. Drop the PNGs into public/branding/ (so Next can serve them at
+//      /branding/Trainzy_logo_{light,dark}.png).
+//   2. Flip USE_REAL_ASSET to true below.
+// Until then the Logo renders an inline SVG with League Spartan
+// typography that matches the rest of the brand.
+const USE_REAL_ASSET = false
+
 /**
  * The Trainzy wordmark. The sparkle (4-petal cross) stays wisteria across
  * both variants; only the wordmark colour swaps.
@@ -43,6 +55,18 @@ export function Logo({
     )
   }
 
+  if (USE_REAL_ASSET) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return (
+      <img
+        src={`/branding/Trainzy_logo_${effective}.png`}
+        alt="Trainzy"
+        className={cn('inline-block', className)}
+        style={{ height, width: 'auto' }}
+      />
+    )
+  }
+
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -61,10 +85,10 @@ export function Logo({
       <text
         x="78"
         y="56"
-        fontFamily="Montserrat, system-ui, sans-serif"
+        fontFamily="var(--font-league-spartan), system-ui, sans-serif"
         fontWeight={800}
         fontSize={48}
-        letterSpacing={-1.2}
+        letterSpacing={-1.5}
         fill={wordmarkColor}
       >
         Trainzy

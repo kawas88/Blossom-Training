@@ -42,37 +42,44 @@ body {
 body {
   /* Clean blush surface — paper texture is gone in the new brand. */
   background-image: none;
-  font-family: var(--font-montserrat), system-ui, sans-serif;
-  font-weight: 500;
+  font-family: var(--font-league-spartan), system-ui, sans-serif;
+  font-weight: 400;
   letter-spacing: 0;
 }
 
 h1,
-h2,
+h2 {
+  font-family: var(--font-league-spartan), system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
 h3,
 h4 {
-  font-family: var(--font-montserrat), system-ui, sans-serif;
-  font-weight: 800;
+  font-family: var(--font-league-spartan), system-ui, sans-serif;
+  font-weight: 700;
   letter-spacing: -0.02em;
 }
 
 h5,
 h6 {
-  font-family: var(--font-montserrat), system-ui, sans-serif;
-  font-weight: 700;
+  font-family: var(--font-league-spartan), system-ui, sans-serif;
+  font-weight: 600;
   letter-spacing: -0.01em;
 }
 
 /* Eyebrow / label utility: uppercase, semibold, wider tracking. The
    legacy `font-mono` class is used everywhere for eyebrow labels; we
-   bump weight and tracking here so it lands with the new look. */
+   bump weight and tracking here so it lands with the new look. League
+   Spartan tracking needs to be slightly wider than Montserrat at
+   uppercase sizes. */
 .eyebrow,
 .font-mono {
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
 }
 
-/* Headlines via Tailwind's font-serif alias also bump to ExtraBold. */
+/* Headlines via Tailwind's font-serif alias bump to ExtraBold. */
 .font-serif {
   font-weight: 800;
 }
@@ -81,13 +88,19 @@ h6 {
   text-wrap: balance;
 }
 
-/* Brand-accent italic emphasis — class name kept (`italic-sage`) for
-   backwards compatibility, but renders wisteria now. */
+/* Brand emphasis pattern — wisteria color + extra weight. League
+   Spartan's italic is just an oblique tilt (geometric sans have no
+   true italic letterforms), so we use weight contrast instead of
+   italic. `italic-sage` and `italic-wisteria` are kept for backwards
+   compatibility but no longer render italic — just wisteria + Black
+   (900) against the surrounding 500/700. Reads as clear emphasis
+   without looking like a rendering bug. */
 .italic-sage,
-.italic-wisteria {
-  font-style: italic;
+.italic-wisteria,
+.emphasis {
+  font-style: normal;
   color: var(--wisteria);
-  font-weight: 800;
+  font-weight: 900;
 }
 
 /* Custom scrollbar — themed to the new palette */
